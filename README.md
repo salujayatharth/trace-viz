@@ -371,6 +371,12 @@ npm install && npm run build && npm run demo   # → http://localhost:4173
 | `Atlas`, `LENSES` | the map: `setTable`, `expand`, `collapse`, `up`, `focus`, `setHops`, `goTo`, `search`, `inspect`, `breadcrumb`, `setLens`, `kill`, `revive`, `setTrail`, `fit`, `drawMinimap`, `getState`/`setState` |
 | `buildAtlas`, `visibleUnits`, `aggregateEdges`, `layoutAtlas`, `neighbourhood`, `trail`, `propagate` | the Atlas model, usable without a canvas |
 
+## Releasing
+
+Bump `version` in `package.json`, add a `CHANGELOG.md` entry, push, then run
+the **release** workflow (Actions tab) or push a `v*` tag. It publishes to npm
+through trusted publishing with provenance; there is no token anywhere.
+
 ## Development
 
 ```bash
