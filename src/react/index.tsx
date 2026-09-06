@@ -98,3 +98,69 @@ export function TraceLightView({
 
 export type { HoverTarget, TraceLightOptions };
 export { TraceLight };
+
+// --- Atlas ---------------------------------------------------------------------
+
+import { Atlas, type AtlasOptions, type LensName } from '../atlas/atlas.js';
+import type { AtlasState } from '../atlas/model.js';
+import type { FlowTable } from '../model.js';
+
+export interface AtlasViewProps extends Omit<AtlasOptions, 'lens'> {
+  /** The flow table. A new object updates in place: the view keeps its expansion, focus and camera. */
+  table: FlowTable;
+  lens?: LensName;
+  /** Initial view state; later changes are applied with `setState`. */
+  state?: Partial<AtlasState>;
+  /** Access to the instance for imperative calls (goTo, walk, setTrail, ...). */
+  onReady?: (atlas: Atlas) => void;
+  className?: string;
+  style?: CSSProperties;
+}
+
+/**
+ * React wrapper over {@link Atlas}. Same contract as {@link TraceLightView}:
+ * the renderer owns the canvas and the loop; React owns the container.
+ */
+export function AtlasView({ table, lens, state, onReady, className, style, ...options }: AtlasViewProps): ReactElement {
+  const ref = useRef<HTMLDivElement>(null);
+  const instance = useRef<Atlas | null>(null);
+  const first = useRef(true);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const atlas = new Atlas(ref.current, { ...options, ...(lens ? { lens } : {}) });
+    instance.current = atlas;
+    atlas.setTable(table);
+    if (state) atlas.setState(state, state.focus ? `ego:${state.focus}` : undefined);
+    onReady?.(atlas);
+    first.current = false;
+    return () => {
+      atlas.destroy();
+      instance.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (first.current) return;
+    instance.current?.update(table);
+  }, [table]);
+
+  useEffect(() => {
+    if (lens) instance.current?.setLens(lens);
+  }, [lens]);
+
+  useEffect(() => {
+    if (first.current || !state) return;
+    instance.current?.setState(state);
+  }, [state]);
+
+  useEffect(() => {
+    if (options.theme) instance.current?.setTheme(options.theme);
+  }, [options.theme]);
+
+  return <div ref={ref} className={className} style={{ width: '100%', height: '100%', minHeight: 320, ...style }} />;
+}
+
+export type { AtlasOptions, AtlasState, LensName };
+export { Atlas };
