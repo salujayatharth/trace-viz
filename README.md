@@ -43,6 +43,11 @@ filters - throws away the context you need. **Atlas** (`/atlas.html`,
   amber turning red.
 - **Lenses.** Traffic, Reliability, Latency, Ownership, Kafka, Blast radius -
   one click each, one meaning each.
+- **Live.** `atlas.update(table)` changes the numbers under the view without
+  moving the viewer: expansion, focus and camera hold. `?src=<json>&poll=<ms>`
+  on the demo page watches a real feed; `l` drifts the seed data to show it.
+- **Keyboard.** `←` heaviest caller, `→` heaviest callee, `↑` `↓` siblings,
+  `⌘K` anything by name, `esc` up.
 
 | Domains (13 tiles, 681 things) | Focus with partial expansion | Blast radius: a store dies |
 |---|---|---|
@@ -368,7 +373,8 @@ npm install && npm run build && npm run demo   # → http://localhost:4173
 | `propagateFailure` | blast radius, without a canvas |
 | `proposeSpec`, `validateSpec`, `heuristicSpec` | the spec agent and its validator |
 | `generateMesh`, `generateSeedGraph`, `generateEstate`, `authChallengeScenario` | seed data |
-| `Atlas`, `LENSES` | the map: `setTable`, `expand`, `collapse`, `up`, `focus`, `setHops`, `goTo`, `search`, `inspect`, `breadcrumb`, `setLens`, `kill`, `revive`, `setTrail`, `fit`, `drawMinimap`, `getState`/`setState` |
+| `Atlas`, `LENSES` | the map: `setTable`, `update`, `expand`, `collapse`, `up`, `focus`, `walk`, `setHops`, `goTo`, `search`, `inspect`, `breadcrumb`, `setLens`, `kill`, `revive`, `setTrail`, `fit`, `drawMinimap`, `getState`/`setState` |
+| `AtlasView` (`trace-viz/react`) | React wrapper for the map |
 | `buildAtlas`, `visibleUnits`, `aggregateEdges`, `layoutAtlas`, `neighbourhood`, `trail`, `propagate` | the Atlas model, usable without a canvas |
 
 ## Releasing
@@ -381,7 +387,7 @@ through trusted publishing with provenance; there is no token anywhere.
 
 ```bash
 npm run typecheck
-npm test           # 38 tests, no browser needed
+npm test           # 40 tests, no browser needed
 npm run build
 npm run screenshots
 ```

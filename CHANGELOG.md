@@ -1,3 +1,12 @@
+## 0.4.0
+
+- **Live updates**: `atlas.update(table)` swaps the data under the view and keeps expansion, focus, hops, kills, trails and the camera; morphs what moved. The Atlas page has a *live* toggle (`l`) that drifts the seed data, and `?src=<json url>&poll=<ms>` to watch a real feed.
+- **Consumer lag is a measure**: `lag` on `FlowMeasures` (messages; sums under aggregation) flows through `project()`, the Atlas model, unit edges and the inspector. A backed-up consume edge carries an amber-to-red bead trail; a topic's rail fill is the sum over its groups.
+- **Walk the graph from the keyboard**: `atlas.walk('up'|'down'|'next'|'prev')`; `←` heaviest caller, `→` heaviest callee, `↑`/`↓` siblings in the band.
+- **Depth profile** on collapsed tiles: a faint histogram of where the group's members sit along the request path.
+- **`AtlasView`** React wrapper (`trace-viz/react`): table changes update in place.
+- `collapseAll()` clears any trail.
+
 ## 0.3.1
 
 - Release through npm trusted publishing (OIDC + provenance); no tokens.
