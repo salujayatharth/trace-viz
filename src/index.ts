@@ -30,6 +30,8 @@ export type { FailureResult, NodeHealth, EdgeHealth } from './failure.js';
 export { proposeSpec, validateSpec, heuristicSpec, buildPrompt, extractJson } from './agent.js';
 export type { Completion, ProposeOptions, ProposalResult } from './agent.js';
 export { generateMesh } from './mesh.js';
+export { generateEstate } from './estate.js';
+export type { EstateOptions } from './estate.js';
 export type { MeshOptions } from './mesh.js';
 
 export { resolveGraph, safeResolveGraph, GraphValidationError } from './schema.js';
@@ -76,3 +78,6 @@ export type {
   ResolvedEdge,
   ResolvedNode,
 } from './types.js';
+
+// Atlas: the map-style navigator for large estates.
+export * from './atlas/index.js';
