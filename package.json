@@ -1,6 +1,6 @@
 {
   "name": "trace-viz",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Visualize service topologies as living, re-projectable pictures. Every dimension is a knob: choose what a box is, bind any dimension to any visual channel, and drop into a 3D world where fail-closed dependencies carry blast radius.",
   "keywords": [
     "3d",

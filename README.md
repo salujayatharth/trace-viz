@@ -14,10 +14,39 @@ your metrics come from. MIT licensed, zero runtime dependencies, usable from a
 npm install trace-viz
 ```
 
-| Flat topology | Miniature world |
+| Studio: one picture, every knob | Atlas: 600 services as a map |
 |---|---|
-| ![](./examples/studio-dark-map.png) | ![](./examples/studio-dark-world.png) |
-| One box per service, colour and coupling bound to dimensions | Three planes, real software silhouettes, instance count as visible mass |
+| ![](./examples/studio-dark-map.png) | ![](./examples/atlas-dark-team.png) |
+| One box per service, colour and coupling bound to dimensions | Semantic zoom over domain › team › service, Kafka topics as rails |
+
+## Atlas: the map for large estates
+
+Service maps stop working at a few hundred nodes, and the usual answer -
+filters - throws away the context you need. **Atlas** (`/atlas.html`,
+[design notes](./docs/ATLAS.md)) treats the estate as a map instead:
+
+- **Semantic zoom.** Domains are tiles; zoom into one and it becomes a band of
+  team tiles; zoom into a team and it becomes services. Everything else stays
+  on the map, collapsed, with all of its traffic aggregated onto it. Zoom out
+  when the map already fits and the group under the cursor folds back up.
+- **Swimlanes, not force.** x is depth in the call chain, y is ownership. A
+  collapsed team's tile stretches across the depths its services occupy, and a
+  ribbon leaving a domain leaves at the depth the traffic actually leaves.
+- **You are always somewhere.** Breadcrumbs, `⌘K` go-to, a URL that encodes
+  the view, an inspector whose callers and callees are links you walk, and a
+  minimap that is a heat strip of where the errors are.
+- **Focus.** Click a service and its neighbourhood (k hops) opens at leaf
+  level; teams that only contribute one neighbour open *partially*, folding
+  their other 44 services into one "44 more" tile.
+- **Kafka is not an edge.** A topic is a rail with partition ticks; producers
+  land on it, consumer groups leave it, and lag fills the pipe from the left,
+  amber turning red.
+- **Lenses.** Traffic, Reliability, Latency, Ownership, Kafka, Blast radius -
+  one click each, one meaning each.
+
+| Domains (13 tiles, 681 things) | Focus with partial expansion | Blast radius: a store dies |
+|---|---|---|
+| ![](./examples/atlas-dark-domains.png) | ![](./examples/atlas-dark-focus.png) | ![](./examples/atlas-dark-blast.png) |
 
 ## The idea
 
@@ -317,6 +346,8 @@ npm install && npm run build && npm run demo   # → http://localhost:4173
   channels, the world's tier/shape/mass/gauge/camera settings, playback, a
   multi-kill panel, and the raw spec as editable JSON with apply, copy, PNG
   export and reset. Nothing the renderer takes is hidden from it.
+- `/atlas.html` — the map: `generateEstate()` (600 services, 80 topics, 12
+  domains, 61 teams) with semantic zoom, lenses, focus, trails and blast radius.
 - `/mesh.html` — the same data with plain controls, for reference
 - `/index.html` — the small one: an API whose auth costs two round trips per call
 
@@ -336,13 +367,15 @@ npm install && npm run build && npm run demo   # → http://localhost:4173
 | `layoutWorld`, `fitCamera`, `project3` | the 3D layout, usable on its own |
 | `propagateFailure` | blast radius, without a canvas |
 | `proposeSpec`, `validateSpec`, `heuristicSpec` | the spec agent and its validator |
-| `generateMesh`, `generateSeedGraph`, `authChallengeScenario` | seed data |
+| `generateMesh`, `generateSeedGraph`, `generateEstate`, `authChallengeScenario` | seed data |
+| `Atlas`, `LENSES` | the map: `setTable`, `expand`, `collapse`, `up`, `focus`, `setHops`, `goTo`, `search`, `inspect`, `breadcrumb`, `setLens`, `kill`, `revive`, `setTrail`, `fit`, `drawMinimap`, `getState`/`setState` |
+| `buildAtlas`, `visibleUnits`, `aggregateEdges`, `layoutAtlas`, `neighbourhood`, `trail`, `propagate` | the Atlas model, usable without a canvas |
 
 ## Development
 
 ```bash
 npm run typecheck
-npm test           # 30 tests, no browser needed
+npm test           # 38 tests, no browser needed
 npm run build
 npm run screenshots
 ```

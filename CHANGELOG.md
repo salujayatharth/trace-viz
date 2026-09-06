@@ -1,3 +1,8 @@
+## 0.3.0
+
+- **Atlas**: a map-style navigator for estates of hundreds of services (`examples/atlas.html`, `src/atlas/`, `docs/ATLAS.md`). Semantic zoom over an ownership hierarchy, swimlane layout (x = call depth, y = ownership), aggregation that conserves traffic at every level, focus with partial expansion ("N more" tiles), Kafka topics as rails with lag fill, lenses, trails, blast radius, breadcrumbs, ⌘K go-to, minimap heat strip, URL-encoded views.
+- `generateEstate()`: 600 services / 80 topics / 12 domains / 61 teams seed with heavy-tailed traffic, hubs, cycles, a sick and a burning service and backed-up topics.
+
 ## 0.2.1
 
 - Error halo redesigned: bound to an error rate, the halo is now a red glow on an absolute scale (nothing under 0.4%, a rim at ~1%, a wide slow-breathing bloom past 6%) instead of a ring relative to the worst node. `NodeStyle.haloIntensity` exposes the 0..1 strength; `ERROR_FLOOR` / `ERROR_CEIL` are exported.
