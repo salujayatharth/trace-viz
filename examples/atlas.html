@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>trace-viz atlas</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+<style>
+  :root {
+    color-scheme: light dark;
+    --ground:#f3f5f8; --surface:#ffffff; --surface-2:#eaeef3; --rule:#d9dfe7; --rule-soft:#e8edf3;
+    --ink:#121821; --muted:#5c6a7c; --faint:#8b98a9;
+    --signal:#1f6feb; --signal-ink:#ffffff; --waste:#b45c09; --bad:#c62828; --good:#0f8a5f;
+    --shadow: 0 12px 40px rgba(16,24,40,.14), 0 2px 8px rgba(16,24,40,.08);
+    --sans:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0b0e13; --surface:#12161d; --surface-2:#181d26; --rule:#242b36; --rule-soft:#1c222b;
+      --ink:#e8edf3; --muted:#8391a3; --faint:#5f6c7d;
+      --signal:#5aa9ff; --signal-ink:#0b0e13; --waste:#ffb54d; --bad:#ff6b6b; --good:#3ddc97;
+      --shadow: 0 16px 48px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0b0e13; --surface:#12161d; --surface-2:#181d26; --rule:#242b36; --rule-soft:#1c222b;
+    --ink:#e8edf3; --muted:#8391a3; --faint:#5f6c7d;
+    --signal:#5aa9ff; --signal-ink:#0b0e13; --waste:#ffb54d; --bad:#ff6b6b; --good:#3ddc97;
+    --shadow: 0 16px 48px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.4);
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--ground); color:var(--ink); font:14px/1.5 var(--sans); -webkit-font-smoothing:antialiased; overflow:hidden; }
+  button { font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+  button:focus-visible, [tabindex]:focus-visible, input:focus-visible { outline:2px solid var(--signal); outline-offset:2px; border-radius:6px; }
+  kbd { font:11px var(--mono); color:var(--faint); border:1px solid var(--rule); border-bottom-width:2px; border-radius:4px; padding:0 5px; }
+
+  .app { display:grid; grid-template-rows:auto 1fr; height:100%; }
+
+  /* ---------- top bar: the place ---------- */
+  .top { display:flex; align-items:center; gap:16px; padding:10px 16px; border-bottom:1px solid var(--rule); background:var(--surface); z-index:5; }
+  .mark { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
+  .mark b { font-weight:600; letter-spacing:-0.01em; font-size:15px; }
+  .mark span { font:11px var(--mono); color:var(--faint); letter-spacing:.08em; text-transform:uppercase; }
+  .crumbs { display:flex; align-items:center; gap:2px; flex:1; min-width:0; font:13px var(--mono); color:var(--muted); overflow:hidden; }
+  .crumb { display:inline-flex; align-items:center; gap:6px; padding:4px 9px; border-radius:7px; white-space:nowrap; border:1px solid transparent; color:var(--ink); }
+  .crumb:hover { background:var(--surface-2); border-color:var(--rule); }
+  .crumb.root { color:var(--muted); }
+  .crumb i { font-style:normal; font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; }
+  .crumb.leaf { border-color:var(--signal); }
+  .sep { color:var(--faint); padding:0 2px; }
+  .top .right { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+  .btn { padding:6px 11px; border-radius:7px; border:1px solid var(--rule); background:var(--surface-2); font:500 12px/1.4 var(--sans); display:inline-flex; align-items:center; gap:6px; }
+  .btn:hover { border-color:var(--signal); }
+  .btn.on { background:var(--signal); color:var(--signal-ink); border-color:var(--signal); }
+  .btn.danger.on { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .btn kbd { border:0; padding:0; opacity:.7; color:inherit; }
+
+  /* ---------- stage ---------- */
+  .stage { position:relative; min-height:0; }
+  #map { position:absolute; inset:0; }
+
+  /* lenses: the left rail */
+  .lenses { position:absolute; left:14px; top:14px; display:flex; flex-direction:column; gap:4px; z-index:3; }
+  .lens { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:9px; background:var(--surface); border:1px solid var(--rule); box-shadow:var(--shadow); font:500 12.5px var(--sans); min-width:150px; text-align:left; }
+  .lens:hover { border-color:var(--signal); }
+  .lens.on { border-color:var(--signal); box-shadow:0 0 0 2px color-mix(in srgb, var(--signal) 30%, transparent), var(--shadow); }
+  .lens .k { font:11px var(--mono); color:var(--faint); margin-left:auto; }
+  .lens .sw { width:10px; height:10px; border-radius:3px; background:var(--signal); flex:none; }
+  .lens[data-lens="reliability"] .sw { background:var(--bad); }
+  .lens[data-lens="latency"] .sw { background:linear-gradient(90deg,#4ad6b8,#ffb54d,#ff6b6b); }
+  .lens[data-lens="ownership"] .sw { background:conic-gradient(#3b82f6,#10b981,#a855f7,#ec4899,#3b82f6); }
+  .lens[data-lens="kafka"] .sw { background:#c58bff; }
+  .lens[data-lens="blast"] .sw { background:repeating-linear-gradient(45deg,var(--bad) 0 3px,transparent 3px 6px); }
+
+  /* stats + hint strip */
+  .hud { position:absolute; left:14px; bottom:14px; display:flex; gap:8px; align-items:flex-end; z-index:3; }
+  .stat { background:var(--surface); border:1px solid var(--rule); border-radius:9px; padding:6px 10px; box-shadow:var(--shadow); font:12px var(--mono); color:var(--muted); }
+  .stat b { color:var(--ink); font-weight:600; }
+  .hint { position:absolute; right:14px; bottom:14px; z-index:3; font:11.5px var(--mono); color:var(--faint); background:var(--surface); border:1px solid var(--rule); border-radius:9px; padding:6px 10px; box-shadow:var(--shadow); }
+  .hint kbd { margin:0 1px; }
+
+  /* minimap */
+  .mini { position:absolute; right:14px; top:14px; width:220px; height:110px; background:var(--surface); border:1px solid var(--rule); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; z-index:3; cursor:crosshair; }
+  .mini canvas { width:100%; height:100%; display:block; }
+  .mini:hover { border-color:var(--signal); }
+
+  /* inspector */
+  .inspector { position:absolute; right:14px; top:136px; width:300px; max-height:calc(100% - 160px); overflow:auto; background:var(--surface); border:1px solid var(--rule); border-radius:12px; box-shadow:var(--shadow); z-index:4; display:none; }
+  .inspector.open { display:block; }
+  .inspector .head { padding:12px 14px 8px; border-bottom:1px solid var(--rule-soft); position:sticky; top:0; background:var(--surface); }
+  .inspector .head h3 { margin:0; font:600 14px var(--sans); word-break:break-all; display:flex; gap:8px; align-items:center; }
+  .inspector .head .kind { font:10px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--faint); }
+  .inspector .head .close { position:absolute; right:10px; top:10px; color:var(--faint); font-size:16px; }
+  .inspector .path { font:11px var(--mono); color:var(--muted); margin-top:4px; }
+  .inspector .path button { color:var(--muted); text-decoration:underline dotted; }
+  .inspector .facts { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; padding:10px 14px; font:12px var(--mono); color:var(--muted); }
+  .inspector .facts b { color:var(--ink); font-weight:500; display:block; }
+  .inspector .facts .bad b { color:var(--bad); }
+  .inspector h4 { margin:8px 14px 4px; font:500 10px var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--faint); display:flex; justify-content:space-between; }
+  .inspector .row { display:grid; grid-template-columns:1fr auto; gap:8px; width:100%; text-align:left; padding:5px 14px; font:12px var(--sans); align-items:center; }
+  .inspector .row:hover { background:var(--surface-2); }
+  .inspector .row .n { font-family:var(--mono); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .inspector .row .n i { font-style:normal; color:var(--faint); font-size:10px; margin-left:6px; }
+  .inspector .row .m { font:11px var(--mono); color:var(--muted); white-space:nowrap; }
+  .inspector .row .m.bad { color:var(--bad); }
+  .inspector .bar { height:2px; background:var(--signal); opacity:.55; margin:-2px 14px 2px; border-radius:2px; }
+  .inspector .actions { display:flex; gap:6px; padding:10px 14px 12px; flex-wrap:wrap; border-top:1px solid var(--rule-soft); }
+  .inspector .actions .btn { font-size:11.5px; padding:5px 9px; }
+  .hops { display:inline-flex; align-items:center; gap:4px; }
+  .hops button { width:22px; height:22px; border:1px solid var(--rule); border-radius:5px; font:12px var(--mono); }
+  .hops span { font:11px var(--mono); min-width:38px; text-align:center; color:var(--muted); }
+
+  /* command palette */
+  .veil { position:fixed; inset:0; background:rgba(8,12,18,.42); z-index:50; display:none; }
+  .veil.open { display:block; }
+  .cmd { position:fixed; left:50%; top:14vh; transform:translateX(-50%); width:min(600px,92vw); background:var(--surface); border:1px solid var(--rule); border-radius:14px; box-shadow:var(--shadow); z-index:51; display:none; overflow:hidden; }
+  .cmd.open { display:block; }
+  .cmd input { width:100%; padding:14px 16px; font:15px var(--sans); color:var(--ink); background:transparent; border:0; border-bottom:1px solid var(--rule); }
+  .cmd input:focus { outline:none; }
+  .cmd .list { max-height:50vh; overflow:auto; padding:6px; }
+  .cmd .it { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; width:100%; text-align:left; padding:8px 10px; border-radius:8px; font:13px var(--sans); }
+  .cmd .it.on, .cmd .it:hover { background:var(--surface-2); }
+  .cmd .it .k { font:10px var(--mono); color:var(--faint); text-transform:uppercase; letter-spacing:.06em; width:64px; }
+  .cmd .it .p { font:11px var(--mono); color:var(--faint); }
+  .cmd .it .n { font-family:var(--mono); }
+  .cmd .empty { padding:14px; color:var(--faint); font:12px var(--mono); }
+  .cmd .foot { padding:8px 12px; border-top:1px solid var(--rule-soft); font:11px var(--mono); color:var(--faint); display:flex; gap:14px; }
+
+  .toast { position:absolute; left:50%; bottom:60px; transform:translateX(-50%); background:var(--ink); color:var(--ground); padding:8px 14px; border-radius:9px; font:12.5px var(--sans); z-index:6; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+  .toast.on { opacity:1; }
+
+  /* tooltip for (i) hints */
+  #tip { position:fixed; z-index:60; max-width:300px; background:var(--ink); color:var(--ground); padding:8px 11px; border-radius:8px; font:12px/1.5 var(--sans); box-shadow:var(--shadow); pointer-events:none; opacity:0; transition:opacity .1s; }
+  #tip.on { opacity:1; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="mark"><b>trace-viz</b><span>atlas</span><a href="./" style="font:11px var(--mono);color:var(--signal);text-decoration:none;margin-left:6px" data-hint="Studio: one picture, every knob.">studio ↗</a></div>
+    <nav class="crumbs" id="crumbs" aria-label="where you are"></nav>
+    <div class="right">
+      <button class="btn" id="b-up" data-hint="Go up one level: clears the focus, or folds the last thing you opened. Same as zooming out when the map already fits."><span>↑ up</span><kbd>esc</kbd></button>
+      <button class="btn" id="b-trail" data-hint="Pick two services and see the path that carries the most traffic between them. Everything else fades.">trail</button>
+      <button class="btn danger" id="b-blast" data-hint="Blast radius: with the Blast lens on, clicking a service kills it. Fail-closed callers die with it; fail-open callers degrade and survive."><span>kill</span><kbd>x</kbd></button>
+      <button class="btn" id="b-theme" data-hint="Toggle light / dark.">◐</button>
+      <button class="btn on" id="b-search" data-hint="Jump to any service, topic, team or domain by name. Opens it for you."><span>go to</span><kbd>⌘K</kbd></button>
+    </div>
+  </header>
+  <main class="stage" id="stage">
+    <div id="map"></div>
+    <div class="lenses" id="lenses"></div>
+    <div class="mini" id="mini" data-hint="The whole map as a heat strip: bands are domains, red is where the errors are. Click to go there."><canvas id="minicanvas"></canvas></div>
+    <aside class="inspector" id="inspector"></aside>
+    <div class="hud">
+      <div class="stat" id="stat"></div>
+    </div>
+    <div class="hint">scroll to zoom · zoom into a tile to open it · zoom out to fold · click a service to focus · <kbd>⌘K</kbd> go to · <kbd>[</kbd> <kbd>]</kbd> hops · <kbd>esc</kbd> up</div>
+    <div class="toast" id="toast"></div>
+  </main>
+</div>
+<div class="veil" id="veil"></div>
+<div class="cmd" id="cmd" role="dialog" aria-label="go to">
+  <input id="cmd-in" placeholder="Go to a service, topic, team or domain…" autocomplete="off" spellcheck="false" />
+  <div class="list" id="cmd-list"></div>
+  <div class="foot"><span>↑↓ move</span><span>↵ go</span><span>esc close</span></div>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script src="./dist/trace-viz.global.js"></script>
+<script>
+(async function () {
+  const { Atlas, LENSES, generateEstate } = window.tracelight;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- data ----------
+  let table;
+  try {
+    const res = await fetch('./data/estate.json');
+    table = res.ok ? await res.json() : generateEstate();
+  } catch { table = generateEstate(); }
+
+  // ---------- theme ----------
+  const root = document.documentElement;
+  const themeOf = () => root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+  // ---------- atlas ----------
+  let suppressHash = false;
+  const atlas = new Atlas($('map'), {
+    theme: themeOf(),
+    lens: 'traffic',
+    insets: { left: 236, top: 30, right: 30, bottom: 70 },
+    onState: () => { renderCrumbs(); renderStat(); writeHash(); },
+    onSelect: (id) => { if (id && atlas.getModel().leaves.has(id)) openInspector(id); else if (!id) { insp.classList.remove('open'); inspected = null; } },
+    onCamera: () => { needMini = true; },
+  });
+  atlas.setTable(table);
+  const model = atlas.getModel();
+
+  // ---------- lenses ----------
+  const lensEl = $('lenses');
+  for (const [name, def] of Object.entries(LENSES)) {
+    const b = document.createElement('button');
+    b.className = 'lens' + (name === 'traffic' ? ' on' : '');
+    b.dataset.lens = name;
+    b.dataset.hint = def.summary;
+    b.innerHTML = `<span class="sw"></span><span>${def.label}</span><span class="k">${Object.keys(LENSES).indexOf(name) + 1}</span>`;
+    b.onclick = () => setLens(name);
+    lensEl.appendChild(b);
+  }
+  function setLens(name) {
+    atlas.setLens(name);
+    for (const b of lensEl.children) b.classList.toggle('on', b.dataset.lens === name);
+    $('b-blast').classList.toggle('on', name === 'blast');
+    killMode = name === 'blast';
+    toast(`${LENSES[name].label}: ${LENSES[name].summary}`);
+    writeHash();
+  }
+
+  // ---------- crumbs ----------
+  function renderCrumbs() {
+    const c = atlas.breadcrumb();
+    const el = $('crumbs');
+    el.innerHTML = '';
+    const rootBtn = document.createElement('button');
+    rootBtn.className = 'crumb root';
+    rootBtn.textContent = table.meta?.title?.split(':')[0] || 'estate';
+    rootBtn.dataset.hint = 'Fold everything back to the domain map.';
+    rootBtn.onclick = () => atlas.collapseAll();
+    el.appendChild(rootBtn);
+    c.forEach((x, i) => {
+      const sep = document.createElement('span'); sep.className = 'sep'; sep.textContent = '›'; el.appendChild(sep);
+      const b = document.createElement('button');
+      const isLeaf = !model.groups.has(x.id);
+      b.className = 'crumb' + (isLeaf ? ' leaf' : '');
+      b.innerHTML = `<i>${x.kind}</i>${x.label}`;
+      b.dataset.hint = isLeaf ? 'The focused service. Click to centre it.' : `Fold back to this ${x.kind}: everything below it collapses.`;
+      b.onclick = () => {
+        if (isLeaf) atlas.fit(`ego:${x.id}`);
+        else {
+          // Collapse everything under this group, keep it open.
+          const st = atlas.getState();
+          const expanded = st.expanded.filter((g) => !g.startsWith(x.id + '/'));
+          if (!expanded.includes(x.id)) expanded.push(x.id);
+          atlas.setState({ expanded, focus: null }, x.id);
+        }
+      };
+      el.appendChild(b);
+    });
+  }
+
+  // ---------- stat ----------
+  function renderStat() {
+    const s = atlas.stats();
+    const st = atlas.getState();
+    $('stat').innerHTML = `<b>${s.units}</b> on map · <b>${s.edges}</b> ribbons · ${s.leaves} things${st.killed.length ? ` · <b style="color:var(--bad)">${st.killed.length} killed</b>` : ''}`;
+  }
+
+  // ---------- minimap ----------
+  const mini = $('minicanvas');
+  let needMini = true;
+  function tickMini() {
+    if (needMini) { atlas.drawMinimap(mini); needMini = false; }
+    requestAnimationFrame(tickMini);
+  }
+  tickMini();
+  setInterval(() => { needMini = true; }, 400);
+  $('mini').addEventListener('click', (e) => {
+    const r = mini.getBoundingClientRect();
+    atlas.minimapClick(mini, e.clientX - r.left, e.clientY - r.top);
+  });
+
+  // ---------- inspector ----------
+  const insp = $('inspector');
+  let inspected = null;
+  function fmtRps(v) { return v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k/s' : v.toFixed(v >= 10 ? 0 : 1) + '/s'; }
+  function fmtInt(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(Math.round(n)); }
+  function openInspector(id) {
+    const x = atlas.inspect(id);
+    if (!x) return;
+    inspected = id;
+    const st = atlas.getState();
+    const rows = (list, dir) => {
+      if (!list.length) return `<div class="row"><span class="n" style="color:var(--faint)">none</span></div>`;
+      const max = list[0].rps || 1;
+      return list.slice(0, 40).map((e) => `
+        <button class="row" data-go="${e.id}" data-hint="${dir === 'up' ? 'Calls' : 'Called by'} ${x.label}. Click to walk there.">
+          <span class="n">${e.label}<i>${e.async ? 'kafka' : e.rigid ? 'fail-closed' : 'fail-open'}${e.apis.length ? ' · ' + e.apis.slice(0, 2).join(', ') : ''}</i></span>
+          <span class="m ${e.errorRate > 0.01 ? 'bad' : ''}">${fmtRps(e.rps)} · ${e.latencyMs.toFixed(0)}ms${e.errorRate > 0.004 ? ' · ' + (e.errorRate * 100).toFixed(1) + '%' : ''}</span>
+        </button><div class="bar" style="width:${Math.max(2, (e.rps / max) * 100 * 0.9)}%"></div>`).join('');
+    };
+    const bad = x.errorRate > 0.004;
+    const isTopic = x.dims.kind === 'topic';
+    insp.innerHTML = `
+      <div class="head">
+        <div class="kind">${x.kind === 'group' ? 'group' : x.dims.kind || 'service'}${x.health !== 'ok' ? ` · <span style="color:var(--bad)">${x.health}</span>` : ''}</div>
+        <h3>${x.label}</h3>
+        <div class="path">${x.path.map((p) => `<button data-go="${p}">${p.split('/').pop()}</button>`).join(' › ')}</div>
+        <button class="close" id="insp-close" aria-label="close">×</button>
+      </div>
+      <div class="facts">
+        <div><b>${fmtRps(x.inRps)}</b>in</div><div><b>${fmtRps(x.outRps)}</b>out</div>
+        <div class="${bad ? 'bad' : ''}"><b>${(x.errorRate * 100).toFixed(2)}%</b>errors</div>
+        ${isTopic ? `<div class="${(x.attrs.lag || 0) > 5e4 ? 'bad' : ''}"><b>${fmtInt(x.attrs.lag || 0)}</b>lag · ${x.attrs.partitions} partitions</div>` : x.kind === 'group' ? `<div><b>${x.members}</b>things</div>` : `<div><b>${x.attrs.instances ?? '–'}</b>instances</div>`}
+      </div>
+      <h4><span>${isTopic ? 'producers' : 'called by'}</span><span>${x.upstream.length}</span></h4>${rows(x.upstream, 'up')}
+      <h4><span>${isTopic ? 'consumer groups' : 'calls'}</span><span>${x.downstream.length}</span></h4>${rows(x.downstream, 'down')}
+      <div class="actions">
+        ${x.kind === 'leaf' ? `<span class="hops" data-hint="How many hops around the focus are shown at full detail."><button id="hop-less">−</button><span>${st.hops} hop${st.hops === 1 ? '' : 's'}</span><button id="hop-more">+</button></span>` : ''}
+        ${x.kind === 'leaf' ? `<button class="btn" id="i-trail" data-hint="Trace the heaviest path from clients to here.">from clients</button>` : ''}
+        ${x.kind === 'leaf' && !isTopic ? `<button class="btn danger ${st.killed.includes(x.id) ? 'on' : ''}" id="i-kill" data-hint="Kill it and watch who dies with it (fail-closed callers) and who only degrades (fail-open).">${st.killed.includes(x.id) ? 'revive' : 'kill'}</button>` : ''}
+        ${x.kind === 'group' ? `<button class="btn" id="i-open">open</button>` : ''}
+        <button class="btn" id="i-fit">centre</button>
+      </div>`;
+    insp.classList.add('open');
+    $('insp-close').onclick = closeInspector;
+    for (const b of insp.querySelectorAll('[data-go]')) b.onclick = () => atlas.goTo(b.dataset.go);
+    insp.querySelector('#hop-less')?.addEventListener('click', () => { atlas.setHops(st.hops - 1); openInspector(id); });
+    insp.querySelector('#hop-more')?.addEventListener('click', () => { atlas.setHops(st.hops + 1); openInspector(id); });
+    insp.querySelector('#i-trail')?.addEventListener('click', () => { const p = atlas.setTrail('clients', id); toast(p ? `${p.length - 1} hops from clients` : 'no path from clients'); });
+    insp.querySelector('#i-kill')?.addEventListener('click', () => {
+      if (st.killed.includes(id)) atlas.revive(); else { if (atlas.getLens() !== 'blast') setLens('blast'); atlas.kill([id]); }
+      openInspector(id);
+    });
+    insp.querySelector('#i-open')?.addEventListener('click', () => atlas.expand(id));
+    insp.querySelector('#i-fit')?.addEventListener('click', () => atlas.fit(x.kind === 'leaf' ? `ego:${id}` : id));
+  }
+  function closeInspector() { insp.classList.remove('open'); inspected = null; if (atlas.getState().focus) atlas.focus(null); }
+
+  // ---------- top buttons ----------
+  $('b-up').onclick = () => { atlas.clearTrail(); atlas.up(); };
+  $('b-theme').onclick = () => {
+    const next = themeOf() === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    atlas.setTheme(next);
+    needMini = true;
+  };
+  let killMode = false;
+  $('b-blast').onclick = () => { if (atlas.getLens() === 'blast' && atlas.getState().killed.length) { atlas.revive(); toast('everyone revived'); } else setLens(atlas.getLens() === 'blast' ? 'traffic' : 'blast'); };
+  let trailFrom = null;
+  $('b-trail').onclick = () => {
+    if (trailFrom) { trailFrom = null; atlas.clearTrail(); $('b-trail').classList.remove('on'); toast('trail cleared'); return; }
+    openPalette('trail:');
+  };
+  $('b-search').onclick = () => openPalette('');
+
+  // ---------- palette ----------
+  const cmd = $('cmd'), veil = $('veil'), cmdIn = $('cmd-in'), cmdList = $('cmd-list');
+  let items = [], sel = 0, mode = 'go';
+  function openPalette(prefix) {
+    mode = prefix.startsWith('trail') ? 'trail-from' : 'go';
+    cmd.classList.add('open'); veil.classList.add('open');
+    cmdIn.value = ''; cmdIn.placeholder = mode === 'go' ? 'Go to a service, topic, team or domain…' : 'Trail: start at…';
+    cmdIn.focus(); renderPalette();
+  }
+  function closePalette() { cmd.classList.remove('open'); veil.classList.remove('open'); }
+  veil.onclick = closePalette;
+  function renderPalette() {
+    const q = cmdIn.value;
+    items = q ? atlas.search(q, 14) : suggestions();
+    sel = Math.min(sel, Math.max(0, items.length - 1));
+    cmdList.innerHTML = items.length ? items.map((it, i) => `
+      <button class="it ${i === sel ? 'on' : ''}" data-i="${i}"><span class="k">${it.kind.replace('group:', '')}</span><span class="n">${it.label}</span><span class="p">${(it.path || []).map((p) => p.split('/').pop()).join(' › ')}</span></button>`).join('')
+      : `<div class="empty">nothing matches</div>`;
+    for (const b of cmdList.querySelectorAll('.it')) b.onclick = () => choose(+b.dataset.i);
+  }
+  function suggestions() {
+    // Where the fire is, then the busiest: the two things people look for first.
+    const leaves = [...model.leaves.values()];
+    const hot = leaves.filter((l) => l.errorRate > 0.01).sort((a, b) => b.errorRate - a.errorRate).slice(0, 4).map((l) => ({ id: l.id, kind: `${(l.errorRate * 100).toFixed(1)}% err`, label: l.id, path: l.path }));
+    const lag = leaves.filter((l) => l.kind === 'topic' && (l.attrs.lag || 0) > 5e4).sort((a, b) => b.attrs.lag - a.attrs.lag).slice(0, 3).map((l) => ({ id: l.id, kind: `lag ${fmtInt(l.attrs.lag)}`, label: l.id, path: l.path }));
+    const busy = leaves.filter((l) => l.kind === 'service').sort((a, b) => b.inRps - a.inRps).slice(0, 4).map((l) => ({ id: l.id, kind: fmtRps(l.inRps), label: l.id, path: l.path }));
+    return [...hot, ...lag, ...busy];
+  }
+  function choose(i) {
+    const it = items[i];
+    if (!it) return;
+    closePalette();
+    if (mode === 'trail-from') {
+      trailFrom = it.id;
+      setTimeout(() => { mode = 'trail-to'; cmd.classList.add('open'); veil.classList.add('open'); cmdIn.value = ''; cmdIn.placeholder = `Trail: from ${it.label} to…`; cmdIn.focus(); renderPalette(); }, 0);
+      return;
+    }
+    if (mode === 'trail-to') {
+      const p = atlas.setTrail(trailFrom, it.id);
+      toast(p ? `${p.length - 1} hops: ${p.join(' → ')}` : `no path from ${trailFrom} to ${it.label}`);
+      if (p) $('b-trail').classList.add('on'); else trailFrom = null;
+      return;
+    }
+    atlas.goTo(it.id);
+  }
+  cmdIn.addEventListener('input', () => { sel = 0; renderPalette(); });
+  cmdIn.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { sel = Math.min(items.length - 1, sel + 1); renderPalette(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); renderPalette(); e.preventDefault(); }
+    else if (e.key === 'Enter') choose(sel);
+    else if (e.key === 'Escape') closePalette();
+  });
+
+  // ---------- keyboard ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName) && e.key !== 'Escape') return;
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(''); return; }
+    if (e.key === '/') { e.preventDefault(); openPalette(''); return; }
+    if (e.key === 'Escape') { if (cmd.classList.contains('open')) closePalette(); else if (atlas.getState().focus) { closeInspector(); } else { atlas.clearTrail(); atlas.up(); } return; }
+    if (e.key === '[') atlas.setHops(atlas.getState().hops - 1);
+    if (e.key === ']') atlas.setHops(atlas.getState().hops + 1);
+    if (e.key === 'x') $('b-blast').click();
+    if (e.key === '0') atlas.fit();
+    const n = parseInt(e.key, 10);
+    if (n >= 1 && n <= 6) setLens(Object.keys(LENSES)[n - 1]);
+  });
+
+  // ---------- hash: every view is a link ----------
+  function writeHash() {
+    if (suppressHash) return;
+    const st = atlas.getState();
+    const parts = [];
+    if (st.expanded.length) parts.push('open=' + st.expanded.map(encodeURIComponent).join(','));
+    if (st.focus) parts.push('focus=' + encodeURIComponent(st.focus));
+    if (st.hops !== 1) parts.push('hops=' + st.hops);
+    if (st.killed.length) parts.push('kill=' + st.killed.map(encodeURIComponent).join(','));
+    if (atlas.getLens() !== 'traffic') parts.push('lens=' + atlas.getLens());
+    const h = '#' + parts.join('&');
+    if (location.hash !== h) history.replaceState(null, '', h === '#' ? location.pathname : h);
+  }
+  function readHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    const st = { expanded: p.get('open') ? p.get('open').split(',').map(decodeURIComponent) : [], focus: p.get('focus') ? decodeURIComponent(p.get('focus')) : null, hops: +(p.get('hops') || 1), killed: p.get('kill') ? p.get('kill').split(',').map(decodeURIComponent) : [] };
+    suppressHash = true;
+    if (p.get('lens') && LENSES[p.get('lens')]) setLens(p.get('lens'));
+    atlas.setState(st, st.focus ? `ego:${st.focus}` : st.expanded[st.expanded.length - 1] ?? null);
+    if (st.focus) openInspector(st.focus);
+    suppressHash = false;
+  }
+  window.addEventListener('hashchange', readHash);
+  if (location.hash.length > 1) readHash();
+
+  // ---------- hints ----------
+  const tip = $('tip');
+  let tipTimer = 0;
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest?.('[data-hint]');
+    clearTimeout(tipTimer);
+    if (!el) { tip.classList.remove('on'); return; }
+    tipTimer = setTimeout(() => {
+      tip.textContent = el.dataset.hint;
+      const r = el.getBoundingClientRect();
+      tip.style.left = Math.min(innerWidth - 310, Math.max(8, r.left)) + 'px';
+      tip.style.top = (r.bottom + 8 > innerHeight - 80 ? r.top - 8 - 60 : r.bottom + 8) + 'px';
+      tip.classList.add('on');
+    }, 350);
+  });
+  document.addEventListener('mouseout', (e) => { if (e.target.closest?.('[data-hint]')) { clearTimeout(tipTimer); tip.classList.remove('on'); } });
+
+  let toastTimer = 0;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2600); }
+
+  renderCrumbs(); renderStat();
+  window.atlas = atlas;
+})();
+</script>
+</body>
+</html>
