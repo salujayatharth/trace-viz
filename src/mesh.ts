@@ -36,6 +36,25 @@ const CATALOG: [string, string, string[]][] = [
   ['search', 'Identity', ['GET /search', 'POST /index']],
 ];
 
+/**
+ * A store has no APIs, but every record needs one on both ends. Name the
+ * operation the engine serves rather than a placeholder, so a box expanded
+ * into its APIs reads "orders-db / query", not "orders-db / primary".
+ */
+function storeOp(engine: string): string {
+  switch (engine) {
+    case 'redis':
+    case 'dynamo':
+      return 'get';
+    case 'kafka':
+      return 'produce';
+    case 's3':
+      return 'put';
+    default:
+      return 'query';
+  }
+}
+
 const STORES: [string, string][] = [
   ['orders-db', 'postgres'],
   ['pricing-cache', 'redis'],
@@ -193,7 +212,7 @@ export function generateMesh(options: MeshOptions = {}): FlowTable {
         // Every API touches its own store.
         push(
           { service: spec.name, api, kind: 'service' },
-          { service: spec.store.name, api: 'primary', kind: storeKind(spec.store.engine), engine: spec.store.engine },
+          { service: spec.store.name, api: storeOp(spec.store.engine), kind: storeKind(spec.store.engine), engine: spec.store.engine },
           { env, region, failure: 'fail-closed', protocol: engineProtocol(spec.store.engine) },
           inbound * between(0.9, 2.4),
           storeLatency(spec.store.engine, between(0.6, 1.4)),
