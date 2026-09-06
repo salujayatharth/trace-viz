@@ -60,6 +60,25 @@ async function run(colorScheme, tag) {
   await page.waitForTimeout(1400);
   await page.screenshot({ path: `examples/atlas-${tag}-trail.png` });
 
+  // Live: update three times and check the place holds.
+  const held = await page.evaluate(async () => {
+    atlas.clearTrail();
+    atlas.collapseAll();
+    atlas.expand('payments/ledger', true);
+    await new Promise((r) => setTimeout(r, 700));
+    const before = { state: atlas.getState(), cam: atlas.getCamera() };
+    for (let i = 0; i < 3; i++) {
+      const t = { ...atlas.getModel && (await (await fetch('./data/estate.json')).json()) };
+      t.records = t.records.map((r) => ({ ...r, metrics: { ...r.metrics, rps: r.metrics.rps * (0.5 + Math.random()) } }));
+      atlas.update(t);
+    }
+    const after = { state: atlas.getState(), cam: atlas.getCamera() };
+    return JSON.stringify(before.state.expanded) === JSON.stringify(after.state.expanded) && before.cam.x === after.cam.x && before.cam.scale === after.cam.scale;
+  });
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `examples/atlas-${tag}-live.png` });
+  if (!held) errors.push('live update moved the view');
+
   console.log(tag, focus, JSON.stringify({ stats: await page.evaluate(() => atlas.stats()), errors }, null, 1));
   await page.close();
 }
