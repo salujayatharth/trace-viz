@@ -585,7 +585,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -634,7 +634,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -707,7 +707,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -732,7 +732,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -805,7 +805,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -830,7 +830,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -879,7 +879,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -928,7 +928,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -953,7 +953,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1026,7 +1026,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1075,7 +1075,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1124,7 +1124,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1173,7 +1173,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1222,7 +1222,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1271,7 +1271,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1344,7 +1344,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1417,7 +1417,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -1466,7 +1466,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -1515,7 +1515,7 @@
       },
       "to": {
         "service": "fraud-features",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "cassandra"
       },
@@ -1564,7 +1564,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -1613,7 +1613,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -1638,7 +1638,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -1687,7 +1687,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -1736,7 +1736,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1809,7 +1809,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -1858,7 +1858,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
@@ -1931,7 +1931,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
@@ -2580,7 +2580,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -2629,7 +2629,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -2654,7 +2654,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -2703,7 +2703,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -2752,7 +2752,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -2801,7 +2801,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -2850,7 +2850,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -2923,7 +2923,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -2972,7 +2972,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3021,7 +3021,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3094,7 +3094,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3167,7 +3167,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3216,7 +3216,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3289,7 +3289,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3338,7 +3338,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3411,7 +3411,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3436,7 +3436,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -3509,7 +3509,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -3558,7 +3558,7 @@
       },
       "to": {
         "service": "fraud-features",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "cassandra"
       },
@@ -3607,7 +3607,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -3656,7 +3656,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -3729,7 +3729,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -3802,7 +3802,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -3851,7 +3851,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3876,7 +3876,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -3949,7 +3949,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
@@ -3998,7 +3998,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
@@ -4623,7 +4623,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -4672,7 +4672,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -4721,7 +4721,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -4770,7 +4770,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -4819,7 +4819,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -4868,7 +4868,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -4941,7 +4941,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -4990,7 +4990,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5039,7 +5039,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5064,7 +5064,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5137,7 +5137,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5186,7 +5186,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5259,7 +5259,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5332,7 +5332,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5357,7 +5357,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5382,7 +5382,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5431,7 +5431,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -5504,7 +5504,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -5553,7 +5553,7 @@
       },
       "to": {
         "service": "fraud-features",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "cassandra"
       },
@@ -5602,7 +5602,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -5651,7 +5651,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -5700,7 +5700,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -5773,7 +5773,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -5798,7 +5798,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5823,7 +5823,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -5872,7 +5872,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
@@ -5945,7 +5945,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
@@ -6570,7 +6570,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -6595,7 +6595,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -6668,7 +6668,7 @@
       },
       "to": {
         "service": "orders-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -6741,7 +6741,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -6814,7 +6814,7 @@
       },
       "to": {
         "service": "pricing-cache",
-        "api": "primary",
+        "api": "get",
         "kind": "cache",
         "engine": "redis"
       },
@@ -6863,7 +6863,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -6912,7 +6912,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -6985,7 +6985,7 @@
       },
       "to": {
         "service": "catalog-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7058,7 +7058,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7083,7 +7083,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7156,7 +7156,7 @@
       },
       "to": {
         "service": "identity-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7205,7 +7205,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7254,7 +7254,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7303,7 +7303,7 @@
       },
       "to": {
         "service": "payments-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7352,7 +7352,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7401,7 +7401,7 @@
       },
       "to": {
         "service": "shipping-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7474,7 +7474,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -7547,7 +7547,7 @@
       },
       "to": {
         "service": "inventory-kv",
-        "api": "primary",
+        "api": "get",
         "kind": "datastore",
         "engine": "dynamo"
       },
@@ -7620,7 +7620,7 @@
       },
       "to": {
         "service": "fraud-features",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "cassandra"
       },
@@ -7693,7 +7693,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -7766,7 +7766,7 @@
       },
       "to": {
         "service": "notify-queue",
-        "api": "primary",
+        "api": "produce",
         "kind": "queue",
         "engine": "kafka"
       },
@@ -7815,7 +7815,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -7864,7 +7864,7 @@
       },
       "to": {
         "service": "reviews-blob",
-        "api": "primary",
+        "api": "put",
         "kind": "datastore",
         "engine": "s3"
       },
@@ -7913,7 +7913,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -7962,7 +7962,7 @@
       },
       "to": {
         "service": "ledger-db",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "postgres"
       },
@@ -8011,7 +8011,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
@@ -8060,7 +8060,7 @@
       },
       "to": {
         "service": "search-index",
-        "api": "primary",
+        "api": "query",
         "kind": "datastore",
         "engine": "clickhouse"
       },
