@@ -1,0 +1,247 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": "client",
+      "label": "Clients",
+      "kind": "client",
+      "layer": 0
+    },
+    {
+      "id": "edge-lb",
+      "label": "Edge LB",
+      "kind": "gateway",
+      "layer": 1
+    },
+    {
+      "id": "gateway",
+      "label": "API gateway",
+      "kind": "gateway",
+      "layer": 2
+    },
+    {
+      "id": "orders",
+      "label": "orders",
+      "kind": "service"
+    },
+    {
+      "id": "pricing",
+      "label": "pricing",
+      "kind": "service"
+    },
+    {
+      "id": "billing",
+      "label": "billing",
+      "kind": "service"
+    },
+    {
+      "id": "fraud",
+      "label": "fraud",
+      "kind": "service"
+    },
+    {
+      "id": "inventory",
+      "label": "inventory",
+      "kind": "service"
+    },
+    {
+      "id": "events",
+      "label": "events",
+      "kind": "datastore"
+    },
+    {
+      "id": "user-db",
+      "label": "user-db",
+      "kind": "datastore"
+    },
+    {
+      "id": "cache",
+      "label": "redis",
+      "kind": "cache"
+    }
+  ],
+  "edges": [
+    {
+      "from": "client",
+      "to": "edge-lb",
+      "kind": "request",
+      "metrics": {
+        "rps": 4200,
+        "latencyMs": 1.5,
+        "errorRate": 0,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "edge-lb",
+      "to": "gateway",
+      "kind": "request",
+      "metrics": {
+        "rps": 4158,
+        "latencyMs": 2.7,
+        "errorRate": 0,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "gateway",
+      "to": "orders",
+      "kind": "request",
+      "metrics": {
+        "rps": 1149.9,
+        "latencyMs": 15,
+        "errorRate": 0.0012,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "gateway",
+      "to": "pricing",
+      "kind": "request",
+      "metrics": {
+        "rps": 535.7,
+        "latencyMs": 33.9,
+        "errorRate": 0.0039,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "gateway",
+      "to": "billing",
+      "kind": "request",
+      "metrics": {
+        "rps": 403.1,
+        "latencyMs": 17.9,
+        "errorRate": 0.0008,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "gateway",
+      "to": "fraud",
+      "kind": "request",
+      "metrics": {
+        "rps": 1194.5,
+        "latencyMs": 12,
+        "errorRate": 0.0175,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "gateway",
+      "to": "inventory",
+      "kind": "request",
+      "metrics": {
+        "rps": 874.8,
+        "latencyMs": 34.7,
+        "errorRate": 0.0003,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "orders",
+      "to": "events",
+      "kind": "request",
+      "metrics": {
+        "rps": 2066,
+        "latencyMs": 76.9,
+        "errorRate": 0.0039,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "pricing",
+      "to": "user-db",
+      "kind": "request",
+      "metrics": {
+        "rps": 1316.8,
+        "latencyMs": 100.3,
+        "errorRate": 0.0105,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "billing",
+      "to": "cache",
+      "kind": "request",
+      "metrics": {
+        "rps": 631.1,
+        "latencyMs": 0.4,
+        "errorRate": 0.0461,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "fraud",
+      "to": "cache",
+      "kind": "request",
+      "metrics": {
+        "rps": 1873.1,
+        "latencyMs": 1.1,
+        "errorRate": 0.0028,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "inventory",
+      "to": "events",
+      "kind": "request",
+      "metrics": {
+        "rps": 1220.5,
+        "latencyMs": 46.6,
+        "errorRate": 0.008,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "inventory",
+      "to": "pricing",
+      "kind": "request",
+      "metrics": {
+        "rps": 256.1,
+        "latencyMs": 58.7,
+        "errorRate": 0.0002,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "fraud",
+      "to": "inventory",
+      "kind": "request",
+      "metrics": {
+        "rps": 670,
+        "latencyMs": 75.3,
+        "errorRate": 0.0037,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "orders",
+      "to": "billing",
+      "kind": "request",
+      "metrics": {
+        "rps": 732.3,
+        "latencyMs": 80.7,
+        "errorRate": 0.0034,
+        "bytes": 1400
+      }
+    },
+    {
+      "from": "billing",
+      "to": "inventory",
+      "kind": "request",
+      "metrics": {
+        "rps": 353,
+        "latencyMs": 51.6,
+        "errorRate": 0,
+        "bytes": 1400
+      }
+    }
+  ],
+  "meta": {
+    "title": "Randomly generated topology",
+    "window": "synthetic",
+    "generatedAt": "1970-01-01T00:00:00.000Z",
+    "seed": 7
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": "client",
+      "label": "Clients",
+      "kind": "client",
+      "layer": 0
+    },
+    {
+      "id": "lb",
+      "label": "Load balancer",
+      "kind": "gateway",
+      "layer": 1
+    },
+    {
+      "id": "api-1",
+      "label": "api-1",
+      "kind": "service",
+      "layer": 2
+    },
+    {
+      "id": "api-2",
+      "label": "api-2",
+      "kind": "service",
+      "layer": 2
+    },
+    {
+      "id": "nonce",
+      "label": "nonce store",
+      "kind": "cache",
+      "layer": 3
+    },
+    {
+      "id": "users",
+      "label": "user-db",
+      "kind": "datastore",
+      "layer": 3
+    },
+    {
+      "id": "orders",
+      "label": "orders-db",
+      "kind": "datastore",
+      "layer": 4
+    }
+  ],
+  "edges": [
+    {
+      "from": "client",
+      "to": "lb",
+      "label": "unauthenticated attempt",
+      "kind": "request",
+      "metrics": {
+        "rps": 5000,
+        "latencyMs": 2,
+        "bytes": 700
+      }
+    },
+    {
+      "from": "lb",
+      "to": "api-1",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 3,
+        "bytes": 700
+      }
+    },
+    {
+      "from": "lb",
+      "to": "api-2",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 3,
+        "bytes": 700
+      }
+    },
+    {
+      "from": "api-1",
+      "to": "nonce",
+      "label": "issue nonce",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 1.4,
+        "bytes": 120
+      }
+    },
+    {
+      "from": "api-2",
+      "to": "nonce",
+      "label": "issue nonce",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 1.4,
+        "bytes": 120
+      }
+    },
+    {
+      "from": "lb",
+      "to": "client",
+      "label": "401 challenge",
+      "kind": "challenge",
+      "metrics": {
+        "rps": 5000,
+        "latencyMs": 4,
+        "bytes": 320
+      }
+    },
+    {
+      "from": "client",
+      "to": "lb",
+      "id": "retry",
+      "label": "retry with credentials",
+      "kind": "retry",
+      "metrics": {
+        "rps": 5000,
+        "latencyMs": 2,
+        "bytes": 900
+      }
+    },
+    {
+      "from": "api-1",
+      "to": "users",
+      "label": "verify password (KDF)",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 82,
+        "errorRate": 0.012,
+        "bytes": 400
+      }
+    },
+    {
+      "from": "api-2",
+      "to": "users",
+      "label": "verify password (KDF)",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 82,
+        "errorRate": 0.012,
+        "bytes": 400
+      }
+    },
+    {
+      "from": "api-1",
+      "to": "nonce",
+      "id": "nonce-check-1",
+      "label": "validate nonce (cross-node)",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 3.5,
+        "errorRate": 0.09,
+        "bytes": 120
+      }
+    },
+    {
+      "from": "api-2",
+      "to": "nonce",
+      "id": "nonce-check-2",
+      "label": "validate nonce (cross-node)",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 3.5,
+        "errorRate": 0.09,
+        "bytes": 120
+      }
+    },
+    {
+      "from": "api-1",
+      "to": "orders",
+      "label": "actual work",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 11,
+        "bytes": 4200
+      }
+    },
+    {
+      "from": "api-2",
+      "to": "orders",
+      "label": "actual work",
+      "kind": "request",
+      "metrics": {
+        "rps": 2500,
+        "latencyMs": 11,
+        "bytes": 4200
+      }
+    }
+  ],
+  "meta": {
+    "title": "Per-request 401 challenge",
+    "window": "modelled",
+    "note": "Every useful call costs two round trips and one password KDF."
+  }
+}
