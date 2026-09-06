@@ -46,6 +46,14 @@
     "./mesh": {
       "types": "./dist/mesh.d.ts",
       "default": "./dist/mesh.js"
+    },
+    "./atlas": {
+      "types": "./dist/atlas/index.d.ts",
+      "default": "./dist/atlas/index.js"
+    },
+    "./estate": {
+      "types": "./dist/estate.d.ts",
+      "default": "./dist/estate.js"
     }
   },
   "files": [
