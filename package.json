@@ -1,0 +1,97 @@
+{
+  "name": "trace-viz",
+  "version": "0.2.0",
+  "description": "Visualize service topologies as living, re-projectable pictures. Every dimension is a knob: choose what a box is, bind any dimension to any visual channel, and drop into a 3D world where fail-closed dependencies carry blast radius.",
+  "keywords": [
+    "3d",
+    "blast-radius",
+    "canvas",
+    "dependency-graph",
+    "distributed-systems",
+    "grammar-of-graphics",
+    "latency",
+    "observability",
+    "particles",
+    "service-map",
+    "service-mesh",
+    "throughput",
+    "topology",
+    "trace-viz",
+    "visualization"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
+    },
+    "./seed": {
+      "types": "./dist/seed.d.ts",
+      "default": "./dist/seed.js"
+    },
+    "./package.json": "./package.json",
+    "./agent": {
+      "types": "./dist/agent.d.ts",
+      "default": "./dist/agent.js"
+    },
+    "./mesh": {
+      "types": "./dist/mesh.d.ts",
+      "default": "./dist/mesh.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "npm run build:types && npm run build:bundle",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:bundle": "node scripts/bundle.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.mjs",
+    "demo": "npm run build:bundle && node scripts/serve.mjs",
+    "prepublishOnly": "npm run build",
+    "screenshots": "node scripts/screenshots.mjs",
+    "artifact": "node scripts/build-artifact.mjs && node scripts/build-artifact-mesh.mjs",
+    "launch": "bash scripts/launch.sh"
+  },
+  "peerDependencies": {
+    "react": ">=17"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0",
+    "@types/react": "^18.3.0",
+    "playwright-core": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/salujayatharth/trace-viz.git"
+  },
+  "homepage": "https://salujayatharth.github.io/trace-viz/",
+  "bugs": {
+    "url": "https://github.com/salujayatharth/trace-viz/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
