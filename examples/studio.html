@@ -429,7 +429,7 @@ const CHANNEL_HINTS = {
   hue: 'Particle colour. Binding a dimension here also splits each edge by it, so a two-region edge becomes two mixed streams.',
   coupling: 'Failure semantics of the dependency. fail-closed draws as a rigid conduit that carries death upstream; fail-open as a breakaway link that stops it. Drives the blast radius when you kill something.',
   column: 'Which dimension the boxes are grouped by. Same value, same column, drawn inside one region with the value at the top.',
-  halo: 'A ring around each box sized by a measure. Bound to errorRate it turns red and grows with the failure rate of what the box serves.',
+  halo: 'A ring around each box sized by a measure. Bound to errorRate it becomes a red glow on an absolute scale: nothing under 0.4%, a rim at 1%, a wide slow-breathing bloom past 5%. Calm fleets look calm.',
   nodeFill: 'Box colour by a dimension.',
   dash: 'The line pattern under the particles, by a dimension.',
   lane: 'Splits an edge into parallel tracks, one per value.',
