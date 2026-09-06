@@ -47,6 +47,11 @@ export interface ChannelDef {
   summary: string;
 }
 
+/** Error rate below which a danger halo draws nothing: every box has some errors. */
+export const ERROR_FLOOR = 0.004;
+/** Error rate at which a danger halo is at full strength. */
+export const ERROR_CEIL = 0.06;
+
 export const CHANNELS: Record<ChannelName, ChannelDef> = {
   density: { name: 'density', target: 'edge', accepts: 'measure', summary: 'particles per second along the edge (log-scaled)' },
   speed: { name: 'speed', target: 'edge', accepts: 'measure', summary: 'how fast particles travel; inverted, so high values crawl' },
@@ -58,7 +63,7 @@ export const CHANNELS: Record<ChannelName, ChannelDef> = {
   coupling: { name: 'coupling', target: 'edge', accepts: 'dimension', maxCardinality: 3, summary: 'failure semantics: a rigid conduit that propagates death, or a breakaway link that stops it' },
   distance: { name: 'distance', target: 'edge', accepts: 'both', maxCardinality: 24, summary: 'how close things sit: bind a measure and heavy callers pull together, bind a dimension and same-value things cluster' },
   nodeFill: { name: 'nodeFill', target: 'node', accepts: 'dimension', maxCardinality: 10, summary: 'node fill colour, one per category' },
-  halo: { name: 'halo', target: 'node', accepts: 'measure', summary: 'a ring around the node sized by a measure - traffic through it, or any numeric fact such as instances' },
+  halo: { name: 'halo', target: 'node', accepts: 'measure', summary: 'a ring around the node sized by a measure - traffic through it, or any numeric fact such as instances. Bound to an error rate it becomes a red glow that scales with how bad things are: 0.5% is a hint, 5% is a siren' },
   column: { name: 'column', target: 'node', accepts: 'dimension', maxCardinality: 12, summary: 'forces nodes into columns by category instead of inferring layers' },
 };
 
@@ -81,6 +86,11 @@ export interface NodeStyle {
   halo: number;
   /** True when the halo encodes something bad (errors), so it is drawn in the danger colour. */
   haloDanger: boolean;
+  /**
+   * 0..1 strength of the halo. For error rates this is absolute, not relative
+   * to the worst node: 0.2% is barely there, 2% clearly glows, 10%+ burns.
+   */
+  haloIntensity: number;
   column: number | null;
   /** The value of the column dimension, so the renderer can draw a region per group. */
   group: string | null;
@@ -387,23 +397,32 @@ export function styleScene(
       fill = mix(p[(fillIdx.index.get(v) ?? 0) % p.length]!, theme.name === 'dark' ? 0.72 : 0.84, theme);
     }
     let halo = 0;
+    let haloIntensity = 0;
     const haloDanger = /error|fail|5xx/i.test(haloBinding?.field ?? '');
     if (haloBinding) {
       const v = haloValue(node);
-      // Rates are 0..1 and read linearly; counts span decades and read on a log.
-      const t = haloDanger || haloBinding.field === 'share'
-        ? clamp(v / Math.max(haloMax, 0.0001), 0, 1)
-        : v > 0 ? logNorm(v, Math.max(haloMax / 1000, 0.001), haloMax) : 0;
-      // A rate halo below a small fraction of the worst case is noise: every
-      // box has *some* errors, and a ring on all of them says nothing.
-      halo = v > 0 && !(haloDanger && t < 0.12) ? 3 + t * 13 : 0;
+      let t: number;
+      if (haloDanger) {
+        // Error rates read on an absolute scale so the picture means the same
+        // thing every day: a fleet where the worst box is at 0.3% should look
+        // calm, not have one box lit up just for being the worst. Log between
+        // ERROR_FLOOR and ERROR_CEIL, so 0.5% is a hint and 5% is a siren.
+        t = v > ERROR_FLOOR ? logNorm(v, ERROR_FLOOR, ERROR_CEIL) : 0;
+      } else if (haloBinding.field === 'share') {
+        t = clamp(v / Math.max(haloMax, 0.0001), 0, 1);
+      } else {
+        // Counts span decades and read on a log.
+        t = v > 0 ? logNorm(v, Math.max(haloMax / 1000, 0.001), haloMax) : 0;
+      }
+      haloIntensity = t;
+      halo = t > 0 ? 3 + t * 13 : 0;
     }
     const groupValue = columnBinding ? (nodeDimOf(node, columnBinding.field) ?? null) : null;
     const column =
       columnBinding && columnIdx?.ok
         ? (columnIdx.index.get(nodeDimOf(node, columnBinding.field) ?? '—') ?? null)
         : null;
-    nodeStyles.set(node.id, { fill, halo, haloDanger, column, group: groupValue });
+    nodeStyles.set(node.id, { fill, halo, haloDanger, haloIntensity, column, group: groupValue });
   }
 
   // --- legend --------------------------------------------------------------

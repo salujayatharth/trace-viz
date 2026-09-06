@@ -1053,7 +1053,7 @@ export class TraceLight {
     if (!pos) return;
     const { ctx, theme } = this;
     const style: NodeStyle =
-      this.styles.nodes.get(node.id) ?? { fill: theme.node[node.kind], halo: 0, haloDanger: false, column: null, group: null };
+      this.styles.nodes.get(node.id) ?? { fill: theme.node[node.kind], halo: 0, haloDanger: false, haloIntensity: 0, column: null, group: null };
     const health: NodeHealth = this.failure.health.get(node.id) ?? 'ok';
     const arrival = (this.failure.hop.get(node.id) ?? 0) * FRONT_HOP_SECONDS;
     const struck = health !== 'ok' ? clamp01((frontAge - arrival) / FRONT_HOP_SECONDS) : 0;
@@ -1065,18 +1065,19 @@ export class TraceLight {
     ctx.save();
     ctx.globalAlpha = (highlightId && highlightId !== node.id ? 0.55 : 1) * morphFade;
 
-    if (style.halo > 0) {
+    const baseAlpha = (highlightId && highlightId !== node.id ? 0.55 : 1) * morphFade;
+    if (style.haloDanger && style.haloIntensity > 0) {
+      this.drawDangerGlow(x, y, pos.width, pos.height, style.haloIntensity, baseAlpha);
+    } else if (style.halo > 0) {
       // Keep the ring inside the row gap on a crowded column, or halos merge
-      // into one outline around the whole column and say nothing. A halo that
-      // encodes errors is drawn in the danger colour: a failing box should be
-      // the one you spot from across the room.
+      // into one outline around the whole column and say nothing.
       const halo = Math.min(style.halo, Math.max(2, pos.height * 0.28));
-      ctx.strokeStyle = style.haloDanger ? theme.error : theme.border;
-      ctx.lineWidth = 1 + (style.halo / 16) * (style.haloDanger ? 2.4 : 1.5);
-      ctx.globalAlpha *= style.haloDanger ? 0.35 + (style.halo / 16) * 0.6 : 0.55;
+      ctx.strokeStyle = theme.border;
+      ctx.lineWidth = 1 + (style.halo / 16) * 1.5;
+      ctx.globalAlpha *= 0.55;
       roundRect(ctx, x - halo, y - halo, pos.width + halo * 2, pos.height + halo * 2, 12);
       ctx.stroke();
-      ctx.globalAlpha = (highlightId && highlightId !== node.id ? 0.55 : 1) * morphFade;
+      ctx.globalAlpha = baseAlpha;
     }
 
     ctx.fillStyle = style.fill;
@@ -1260,7 +1261,7 @@ export class TraceLight {
     if (!pos) return;
     const { ctx, theme } = this;
     const style: NodeStyle =
-      this.styles.nodes.get(node.id) ?? { fill: theme.node[node.kind], halo: 0, haloDanger: false, column: null, group: null };
+      this.styles.nodes.get(node.id) ?? { fill: theme.node[node.kind], halo: 0, haloDanger: false, haloIntensity: 0, column: null, group: null };
     const health: NodeHealth = this.failure.health.get(node.id) ?? 'ok';
     const arrival = (this.failure.hop.get(node.id) ?? 0) * FRONT_HOP_SECONDS;
     const struck = health !== 'ok' ? clamp01((frontAge - arrival) / FRONT_HOP_SECONDS) : 0;
@@ -1345,6 +1346,46 @@ export class TraceLight {
     const value = nodeDimValue(node, by);
     if (!value) return undefined;
     return this.spec.world?.componentMap?.[value] ?? value;
+  }
+
+  /**
+   * The error halo: a red glow that scales with how bad things are. Low
+   * intensity is a thin warm rim you notice on a second look; high intensity
+   * is a wide bloom that breathes slowly, so a burning box is the thing you
+   * see from across the room without anything flashing at you.
+   */
+  private drawDangerGlow(x: number, y: number, w: number, h: number, intensity: number, baseAlpha: number): void {
+    const { ctx, theme } = this;
+    const t = clamp01(intensity);
+    // Breathe only once it is serious; period ~3.4s, small amplitude, so the
+    // motion reads as a pulse, not a blink. Phase by position so a column of
+    // sick boxes does not throb in lockstep.
+    const breathe = t > 0.5 ? (0.5 + 0.5 * Math.sin(now() / 540 + x * 0.013 + y * 0.007)) * (t - 0.5) * 2 : 0;
+    const dark = theme.name === 'dark';
+    const spread = 3 + t * t * 26 + breathe * 5;
+    const strength = (0.18 + t * 0.62 + breathe * 0.12) * baseAlpha;
+    ctx.save();
+    // Bloom: a few blurred fills of shrinking size stack into a soft falloff
+    // that stays crisp at the box edge, unlike one huge blur.
+    ctx.fillStyle = theme.error;
+    for (const [k, a] of [[1, 0.22], [0.6, 0.3], [0.3, 0.42]] as const) {
+      ctx.shadowColor = theme.error;
+      ctx.shadowBlur = spread * k * 2.2;
+      ctx.globalAlpha = strength * a * (dark ? 1 : 0.8);
+      const pad = spread * k * 0.5;
+      roundRect(ctx, x - pad, y - pad, w + pad * 2, h + pad * 2, 10 + pad);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    // Rim: the definite edge of the halo, so intensity can also be read as a
+    // width when the bloom is faint.
+    ctx.strokeStyle = theme.error;
+    ctx.lineWidth = 1 + t * t * 3.5;
+    ctx.globalAlpha = (0.4 + t * 0.55) * baseAlpha;
+    const rim = 2 + t * t * 5;
+    roundRect(ctx, x - rim, y - rim, w + rim * 2, h + rim * 2, 10);
+    ctx.stroke();
+    ctx.restore();
   }
 
   /** A steady ring around the selected thing, with a slow breathing halo. */

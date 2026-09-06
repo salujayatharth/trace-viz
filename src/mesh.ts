@@ -95,6 +95,17 @@ export function generateMesh(options: MeshOptions = {}): FlowTable {
   const records: FlowRecord[] = [];
   const nodes: NodeFact[] = [];
 
+  // Errors are not uniform. A healthy fleet sits well under 0.5%; one service
+  // is having a bad day (a few percent) and one busy API is on fire (double
+  // digits). The halo channel reads error rate on an absolute scale so those
+  // two stand out - which means the seed has to contain them. Picked once, so
+  // the same things are broken in both regions, as a real incident would be.
+  const errPick = specs.filter((s) => !['identity', 'orders', 'payments'].includes(s.name));
+  const sick = errPick[Math.floor(rand() * errPick.length)]!.name;
+  let burning = errPick[Math.floor(rand() * errPick.length)]!;
+  if (burning.name === sick) burning = errPick[(errPick.indexOf(burning) + 1) % errPick.length]!;
+  const burningApi = burning.apis[0]!;
+
   const push = (
     from: Record<string, string>,
     to: Record<string, string>,
@@ -144,6 +155,18 @@ export function generateMesh(options: MeshOptions = {}): FlowTable {
     // closed on everything - is what turns one dead service into a dead site,
     // and the blast-radius view exists to show exactly that.
     const CRITICAL = new Set(['identity', 'orders', 'payments']);
+
+    // Errors are not uniform either. A healthy fleet sits well under 0.5%;
+    // one service is having a bad day (a few percent), and one API is on
+    // fire (double digits). The halo channel is built to make those two
+    // stand out at an absolute scale, so the seed has to contain them.
+    const errorFor = (service: string, api: string, healthy: number): number => {
+      if (env !== 'prod') return healthy;
+      if (service === burning.name && api === burningApi) return between(0.12, 0.3);
+      if (service === sick) return between(0.02, 0.05);
+      return healthy;
+    };
+
     publicApis.forEach((target, i) => {
       push(
         { service: 'gateway', api: 'ingress', kind: 'gateway' },
@@ -156,7 +179,7 @@ export function generateMesh(options: MeshOptions = {}): FlowTable {
         },
         (scale * weights[i]!) / total,
         between(4, 40),
-        between(0, 0.01),
+        errorFor(target.service, target.api, between(0, 0.004)),
         900,
       );
     });
@@ -174,7 +197,7 @@ export function generateMesh(options: MeshOptions = {}): FlowTable {
           { env, region, failure: 'fail-closed', protocol: engineProtocol(spec.store.engine) },
           inbound * between(0.9, 2.4),
           storeLatency(spec.store.engine, between(0.6, 1.4)),
-          between(0, 0.006),
+          between(0, 0.003),
           between(300, 5200),
         );
 
@@ -199,7 +222,7 @@ export function generateMesh(options: MeshOptions = {}): FlowTable {
             },
             inbound * between(0.1, 0.9),
             between(3, 70),
-            failOpen ? between(0, 0.03) : between(0, 0.012),
+            errorFor(other.name, otherApi, failOpen ? between(0, 0.008) : between(0, 0.004)),
             between(200, 2600),
           );
         }

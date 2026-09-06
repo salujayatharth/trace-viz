@@ -19,7 +19,7 @@ export { project, nodeIdFor, isMeasure } from './project.js';
 export type { ViewSpec, WorldSpec, ChannelBinding, ProjectionResult } from './project.js';
 export { sceneFromGraph } from './scene.js';
 export type { Scene, SceneNode, SceneEdge } from './scene.js';
-export { CHANNELS, styleScene, couplingFor, CATEGORICAL } from './channels.js';
+export { CHANNELS, styleScene, couplingFor, CATEGORICAL, ERROR_FLOOR, ERROR_CEIL } from './channels.js';
 export type { ChannelName, ChannelDef, EdgeStyle, NodeStyle, Glyph, Coupling, LegendGroup, StyledScene } from './channels.js';
 export { COMPONENTS, pickComponent, defaultTier, TIER_LABELS } from './components.js';
 export type { WorldComponent, ComponentProps, ComponentBox } from './components.js';
