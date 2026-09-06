@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tracelight — dimensional mesh</title>
+<link rel="icon" href="data:," />
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f4f6f8; --panel:#fff; --rule:#dce2ea; --soft:#eef2f6;
+    --ink:#131a23; --muted:#5d6b7d; --signal:#1f6feb; --warn:#b45c09; --bad:#c62828;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0c1016; --panel:#141a22; --rule:#28313d; --soft:#1a212a;
+            --ink:#e6edf4; --muted:#8794a5; --signal:#5aa9ff; --warn:#ffb54d; --bad:#ff6b6b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width:1440px; margin:0 auto; padding:24px 20px 48px; }
+  h1 { margin:0 0 4px; font-size:20px; letter-spacing:-0.01em; }
+  .sub { margin:0 0 18px; color:var(--muted); max-width:80ch; }
+  .layout { display:grid; grid-template-columns: minmax(0,1fr) 320px; gap:16px; align-items:start; }
+  @media (max-width: 1080px) { .layout { grid-template-columns: minmax(0,1fr); } }
+
+  /* World mode needs real vertical room: three planes plus a label block under
+     every body. Squeezing that into a short frame is what makes planes collide. */
+  #map { height:min(660px,72vh); min-height:440px; border:1px solid var(--rule);
+         border-radius:12px; overflow:hidden; background:var(--panel); transition:height .25s ease; }
+  #map.world { height:min(880px,88vh); }
+
+  .panel { border:1px solid var(--rule); border-radius:10px; background:var(--panel); padding:12px 14px; }
+  .panel + .panel { margin-top:12px; }
+  .panel h2 { margin:0 0 9px; font:500 10px/1 var(--mono); letter-spacing:.14em;
+              text-transform:uppercase; color:var(--muted); }
+
+  .bar { display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; margin-bottom:12px;
+         padding:10px 12px; border:1px solid var(--rule); border-radius:10px; background:var(--panel); }
+  label.inline { display:inline-flex; align-items:center; gap:6px; font:12px/1 var(--mono); color:var(--muted); }
+  select, input[type=text] { font:inherit; font-size:12px; padding:5px 7px; border-radius:6px;
+         border:1px solid var(--rule); background:var(--bg); color:var(--ink); max-width:170px; }
+  input[type=range] { accent-color:var(--signal); width:96px; }
+  button { font:500 12px/1 inherit; padding:6px 11px; border-radius:6px; border:1px solid var(--rule);
+           background:var(--bg); color:var(--ink); cursor:pointer; }
+  button:hover { border-color:var(--signal); }
+  button.on { background:var(--signal); border-color:var(--signal); color:#fff; }
+  button.danger.on { background:var(--bad); border-color:var(--bad); }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { font:500 11px/1 var(--mono); padding:5px 9px; border-radius:20px;
+          border:1px solid var(--rule); background:var(--bg); color:var(--muted); cursor:pointer; }
+  .chip.on { background:var(--signal); border-color:var(--signal); color:#fff; }
+  .chip small { opacity:.72; }
+
+  .grid { display:grid; grid-template-columns:76px 1fr; gap:6px 8px; align-items:center; }
+  .grid label { font:11px/1 var(--mono); color:var(--muted); }
+  .grid select { max-width:100%; width:100%; }
+
+  .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px 12px; }
+  .stat b { display:block; font:500 17px/1.2 var(--mono); font-variant-numeric:tabular-nums; }
+  .stat span { font:10px/1.3 var(--mono); letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .stat.bad b { color:var(--bad); } .stat.warn b { color:var(--warn); }
+
+  .legend li { list-style:none; display:flex; gap:8px; align-items:flex-start; padding:5px 0;
+               border-top:1px solid var(--soft); }
+  .legend ul { margin:0; padding:0; }
+  .legend .ch { font:500 11px/1.5 var(--mono); color:var(--signal); min-width:64px; }
+  .legend .vals { font:11px/1.5 var(--mono); color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 9px; }
+  .sw { display:inline-flex; align-items:center; gap:4px; }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  .ask { display:flex; gap:6px; }
+  .ask input { flex:1; max-width:none; }
+  .note { margin:8px 0 0; font:11px/1.5 var(--mono); color:var(--muted); }
+  .issues { margin:8px 0 0; font:11px/1.5 var(--mono); color:var(--warn); }
+  .issues div { padding:2px 0; }
+  code { font-family:var(--mono); font-size:11px; }
+  pre { margin:8px 0 0; font:10px/1.45 var(--mono); color:var(--muted); background:var(--soft);
+        padding:8px; border-radius:6px; overflow:auto; max-height:150px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>tracelight — every dimension is a knob</h1>
+  <p class="sub">
+    One flow table: 12 services, ~40 APIs, 3 environments, 2 regions, and a declared failure
+    contract on every dependency. Nothing below is a different diagram — it is the same data
+    projected differently. Change what a box <em>is</em>, bind any dimension to any visual channel,
+    and the mesh reshapes rather than reloads.
+  </p>
+
+  <div class="bar">
+    <label class="inline">view
+      <button id="m-flat" class="on">flat</button>
+      <button id="m-world">world (3D)</button>
+    </label>
+    <label class="inline">click
+      <button id="c-focus" class="on">focus</button>
+      <button id="c-kill" class="danger">kill</button>
+    </label>
+    <label class="inline">speed <input id="speed" type="range" min="0" max="2" step="0.1" value="1" /></label>
+    <label class="inline"><input id="labels" type="checkbox" /> numbers</label>
+    <button id="reset">reset</button>
+    <span class="note" id="hint">world mode: drag to turn the camera</span>
+  </div>
+
+  <div class="layout">
+    <div>
+      <div id="map"></div>
+      <div class="panel" style="margin-top:12px">
+        <h2>what a box is</h2>
+        <div class="chips" id="nodekey"></div>
+        <p class="note" id="keynote"></p>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>ask for a view</h2>
+        <div class="ask">
+          <input id="ask" type="text" placeholder="cluster tightly coupled services in 3D" />
+          <button id="ask-go">compose</button>
+        </div>
+        <p class="note" id="ask-note"></p>
+      </div>
+
+      <div class="panel">
+        <h2>filters</h2>
+        <div class="grid" id="filters"></div>
+      </div>
+
+      <div class="panel">
+        <h2>channels</h2>
+        <div class="grid" id="channels"></div>
+      </div>
+
+      <div class="panel">
+        <h2>reading</h2>
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div class="panel legend">
+        <h2>legend</h2>
+        <ul id="legend"></ul>
+        <div class="issues" id="issues"></div>
+      </div>
+
+      <div class="panel">
+        <h2>spec</h2>
+        <pre id="spec"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="dist/trace-viz.global.js"></script>
+<script>
+const { TraceLight, CHANNELS, describeTable, heuristicSpec, proposeSpec, formatRps } = tracelight;
+const el = (id) => document.getElementById(id);
+
+let TABLE, SCHEMA, tl;
+let spec = {
+  nodeKey: ['service'],
+  where: { env: ['prod'] },
+  channels: { hue: { field: 'region' }, coupling: { field: 'failure' }, distance: { field: 'rps' } },
+  mode: 'flat',
+  world: { instances: 'instances', gauges: ['cpu', 'mem'] },
+};
+let clickMode = 'focus';
+
+const DEFAULT_SPEC = JSON.parse(JSON.stringify(spec));
+
+fetch('data/mesh.json').then((r) => r.json()).then((table) => {
+  TABLE = table;
+  SCHEMA = describeTable(table);
+  tl = new TraceLight(el('map'), {
+    theme: 'auto',
+    seed: 11,
+    showEdgeLabels: false,
+    onView: onView,
+    onSelect: onSelect,
+  });
+  buildNodeKey();
+  buildFilters();
+  buildChannels();
+  apply();
+});
+
+// --- controls --------------------------------------------------------------
+
+function endpointDims() {
+  return SCHEMA.dimensions.filter((d) => d.endpoint && d.cardinality > 1);
+}
+
+function buildNodeKey() {
+  const host = el('nodekey');
+  host.innerHTML = '';
+  for (const d of endpointDims()) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.innerHTML = `${d.name} <small>${d.cardinality}</small>`;
+    b.onclick = () => {
+      const has = spec.nodeKey.includes(d.name);
+      spec.nodeKey = has ? spec.nodeKey.filter((k) => k !== d.name) : [...spec.nodeKey, d.name];
+      if (!spec.nodeKey.length) spec.nodeKey = [d.name];
+      delete spec.focus;
+      apply();
+    };
+    b.dataset.dim = d.name;
+    host.appendChild(b);
+  }
+}
+
+function buildFilters() {
+  const host = el('filters');
+  host.innerHTML = '';
+  for (const d of SCHEMA.dimensions.filter((x) => x.cardinality > 1 && x.cardinality <= 8)) {
+    const label = document.createElement('label');
+    label.textContent = d.name;
+    const sel = document.createElement('select');
+    sel.innerHTML = `<option value="">all</option>` + d.values.map((v) => `<option>${v}</option>`).join('');
+    sel.value = spec.where?.[d.name]?.[0] ?? '';
+    sel.onchange = () => {
+      spec.where = { ...spec.where };
+      if (sel.value) spec.where[d.name] = [sel.value];
+      else delete spec.where[d.name];
+      apply();
+    };
+    sel.dataset.dim = d.name;
+    host.append(label, sel);
+  }
+}
+
+function fieldOptions(def) {
+  const dims = SCHEMA.dimensions
+    .filter((d) => !def.maxCardinality || d.cardinality <= def.maxCardinality)
+    .map((d) => d.name);
+  const measures = [...SCHEMA.measures, ...SCHEMA.nodeAttrs];
+  if (def.accepts === 'measure') return measures;
+  if (def.accepts === 'dimension') return dims;
+  return [...dims, ...measures];
+}
+
+function buildChannels() {
+  const host = el('channels');
+  host.innerHTML = '';
+  for (const [name, def] of Object.entries(CHANNELS)) {
+    const label = document.createElement('label');
+    label.textContent = name;
+    label.title = def.summary;
+    const sel = document.createElement('select');
+    sel.innerHTML = `<option value="">—</option>` + fieldOptions(def).map((f) => `<option>${f}</option>`).join('');
+    sel.value = spec.channels?.[name]?.field ?? '';
+    sel.title = def.summary;
+    sel.onchange = () => {
+      spec.channels = { ...spec.channels };
+      if (sel.value) spec.channels[name] = { field: sel.value };
+      else delete spec.channels[name];
+      apply();
+    };
+    sel.dataset.channel = name;
+    host.append(label, sel);
+  }
+}
+
+function syncControls() {
+  for (const b of el('nodekey').querySelectorAll('.chip')) {
+    b.classList.toggle('on', spec.nodeKey.includes(b.dataset.dim));
+  }
+  for (const s of el('filters').querySelectorAll('select')) {
+    s.value = spec.where?.[s.dataset.dim]?.[0] ?? '';
+  }
+  for (const s of el('channels').querySelectorAll('select')) {
+    s.value = spec.channels?.[s.dataset.channel]?.field ?? '';
+  }
+  el('m-flat').classList.toggle('on', spec.mode !== 'world');
+  el('m-world').classList.toggle('on', spec.mode === 'world');
+  el('map').classList.toggle('world', spec.mode === 'world');
+  el('hint').textContent =
+    spec.mode === 'world' ? 'drag to turn the camera · click a box to ' + clickMode : 'click a box to ' + clickMode;
+}
+
+// --- wiring ----------------------------------------------------------------
+
+el('m-flat').onclick = () => { spec.mode = 'flat'; apply(); };
+el('m-world').onclick = () => { spec.mode = 'world'; apply(); };
+el('c-focus').onclick = () => { clickMode = 'focus'; el('c-focus').classList.add('on'); el('c-kill').classList.remove('on'); syncControls(); };
+el('c-kill').onclick = () => { clickMode = 'kill'; el('c-kill').classList.add('on'); el('c-focus').classList.remove('on'); syncControls(); };
+el('speed').oninput = (e) => tl.setOptions({ speed: Number(e.target.value) });
+el('labels').onchange = (e) => tl.setOptions({ showEdgeLabels: e.target.checked });
+el('reset').onclick = () => { spec = JSON.parse(JSON.stringify(DEFAULT_SPEC)); apply(); };
+
+el('ask-go').onclick = ask;
+el('ask').onkeydown = (e) => { if (e.key === 'Enter') ask(); };
+
+async function ask() {
+  const request = el('ask').value.trim();
+  if (!request) return;
+  el('ask-note').textContent = 'composing…';
+  const complete = window.claude?.complete
+    ? async ({ system, user }) => window.claude.complete(`${system}\n\n${user}`)
+    : null;
+
+  let result;
+  if (complete) {
+    result = await proposeSpec(request, { complete, schema: SCHEMA, current: spec });
+  } else {
+    result = { spec: heuristicSpec(request, SCHEMA, spec), issues: [], source: 'fallback' };
+  }
+  spec = { ...spec, ...result.spec };
+  apply();
+  el('ask-note').textContent =
+    result.source === 'model'
+      ? 'composed by the model, then validated against the registry'
+      : 'no model available here — used the built-in heuristic';
+  showIssues(result.issues);
+}
+
+function onSelect(target) {
+  if (!target || target.kind !== 'node') return;
+  const node = target.node;
+  if (clickMode === 'kill') {
+    const killed = new Set(spec.killed ?? []);
+    killed.has(node.id) ? killed.delete(node.id) : killed.add(node.id);
+    spec.killed = [...killed];
+  } else {
+    const service = node.key.service ?? node.label;
+    const expanded = spec.focus?.match?.service === service;
+    if (expanded || spec.nodeKey.includes('api')) delete spec.focus;
+    else spec.focus = { match: { service }, expandBy: ['api'] };
+  }
+  apply();
+}
+
+function apply() {
+  tl.setTable(TABLE, spec);
+  syncControls();
+  el('spec').textContent = JSON.stringify(spec, null, 1);
+}
+
+// --- readouts --------------------------------------------------------------
+
+function onView(info) {
+  const s = info.stats;
+  el('stats').innerHTML = [
+    stat(formatRps(s.totalRps) + '/s', 'traffic drawn'),
+    stat(s.nodes + ' · ' + s.edges, 'boxes · flows'),
+    stat(s.records + ' / ' + (s.records + s.filtered), 'records shown', s.filtered ? 'warn' : ''),
+    stat(s.deadNodes + ' · ' + s.degradedNodes, 'dead · degraded', s.deadNodes ? 'bad' : ''),
+  ].join('');
+
+  el('legend').innerHTML = info.legend.length
+    ? info.legend.map(legendRow).join('')
+    : '<li><span class="vals">nothing bound — defaults in use</span></li>';
+
+  el('keynote').textContent =
+    `a box is one ${spec.nodeKey.join(' + ')}` +
+    (info.splitBy.length ? `; edges split by ${info.splitBy.join(', ')}` : '') +
+    (spec.focus ? `; ${spec.focus.match.service} expanded by ${spec.focus.expandBy.join(', ')}` : '');
+
+  showIssues(info.issues);
+}
+
+function stat(value, label, cls) {
+  return `<div class="stat ${cls || ''}"><b>${value}</b><span>${label}</span></div>`;
+}
+
+function legendRow(g) {
+  const swatches = g.swatches.length
+    ? g.swatches
+        .map((s) =>
+          s.color
+            ? `<span class="sw"><i class="dot" style="background:${s.color}"></i>${s.value}</span>`
+            : `<span class="sw">${s.mark ?? ''} ${s.value}</span>`,
+        )
+        .join('')
+    : `<span class="sw">${g.summary}</span>`;
+  return `<li><span class="ch">${g.channel}</span><span class="vals"><b>${g.field}</b>${swatches}</span></li>`;
+}
+
+function showIssues(issues) {
+  el('issues').innerHTML = (issues ?? []).map((i) => `<div>⚠ ${i}</div>`).join('');
+}
+</script>
+</body>
+</html>

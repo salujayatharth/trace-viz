@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>tracelight — flow map demo</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbfd; --panel: #ffffff; --border: #dfe3ea;
+    --text: #1a1f27; --muted: #616c7d; --accent: #1f6feb; --warn: #d97706;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1117; --panel:#161b23; --border:#2a323d; --text:#e6edf3; --muted:#8b98a8; --accent:#5aa9ff; --warn:#ffb54d; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 56px; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 20px; max-width: 70ch; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+    padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--panel); margin-bottom: 14px;
+  }
+  label { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+  select, input[type="range"] { accent-color: var(--accent); }
+  select {
+    font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  }
+  .stats { display: flex; flex-wrap: wrap; gap: 22px; margin: 0 0 12px; padding: 0 2px; }
+  .stat { display: flex; flex-direction: column; }
+  .stat b { font: 600 19px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .stat span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .stat.warn b { color: var(--warn); }
+  #map { height: 560px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .note {
+    margin-top: 14px; padding: 12px 14px; border-left: 3px solid var(--accent);
+    background: var(--panel); border-radius: 0 8px 8px 0; color: var(--muted); font-size: 13px;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>tracelight</h1>
+  <p class="sub">
+    Throughput is particle <em>density</em>, latency is particle <em>speed</em>, errors are hollow rings,
+    and work that never reaches the data tier is dashed. Switch between the two auth designs below and
+    watch the reverse stream disappear.
+  </p>
+
+  <div class="controls">
+    <label>scenario
+      <select id="scenario">
+        <option value="data/auth-challenge.json">401 challenge per request</option>
+        <option value="data/auth-token.json">Bearer token (challenge amortised)</option>
+        <option value="data/random-small.json">Random topology (small)</option>
+        <option value="data/random-large.json">Random topology (large)</option>
+      </select>
+    </label>
+    <label>theme
+      <select id="theme">
+        <option value="auto">auto</option>
+        <option value="dark">dark</option>
+        <option value="light">light</option>
+      </select>
+    </label>
+    <label>speed <input id="speed" type="range" min="0" max="3" step="0.1" value="1" /></label>
+    <label><input id="labels" type="checkbox" checked /> numbers</label>
+    <label><input id="animate" type="checkbox" checked /> animate</label>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="s-total">—</b><span>total rps on the wire</span></div>
+    <div class="stat warn"><b id="s-wasted">—</b><span>rps that is retry / challenge</span></div>
+    <div class="stat warn"><b id="s-pct">—</b><span>share of traffic wasted</span></div>
+    <div class="stat"><b id="s-shape">—</b><span>nodes · flows</span></div>
+  </div>
+
+  <div id="map"></div>
+
+  <p class="note" id="note"></p>
+</div>
+
+<script src="dist/trace-viz.global.js"></script>
+<script>
+  const { TraceLight, formatRps } = tracelight;
+  const el = (id) => document.getElementById(id);
+
+  const tl = new TraceLight(el('map'), { theme: 'auto', seed: 11 });
+
+  async function load(url) {
+    const graph = await fetch(url).then((r) => r.json());
+    tl.setGraph(graph);
+    const s = tl.stats();
+    el('s-total').textContent = formatRps(s.totalRps) + '/s';
+    el('s-wasted').textContent = formatRps(s.wastedRps) + '/s';
+    el('s-pct').textContent = (s.wastedFraction * 100).toFixed(0) + '%';
+    el('s-shape').textContent = s.nodes + ' · ' + s.edges;
+    el('note').textContent = (graph.meta && (graph.meta.note || graph.meta.title)) || '';
+  }
+
+  el('scenario').addEventListener('change', (e) => load(e.target.value));
+  el('theme').addEventListener('change', (e) => tl.setOptions({ theme: e.target.value }));
+  el('speed').addEventListener('input', (e) => tl.setOptions({ speed: Number(e.target.value) }));
+  el('labels').addEventListener('change', (e) => tl.setOptions({ showEdgeLabels: e.target.checked }));
+  el('animate').addEventListener('change', (e) => tl.setOptions({ animate: e.target.checked }));
+
+  load(el('scenario').value);
+</script>
+</body>
+</html>

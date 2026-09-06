@@ -1,0 +1,1204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>trace-viz studio</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+<style>
+  :root {
+    color-scheme: light dark;
+    --ground:#f3f5f8; --surface:#ffffff; --surface-2:#eaeef3; --rule:#d9dfe7; --rule-soft:#e8edf3;
+    --ink:#121821; --muted:#5c6a7c; --faint:#8b98a9;
+    --signal:#1f6feb; --signal-ink:#ffffff; --waste:#b45c09; --bad:#c62828; --good:#0f8a5f;
+    --shadow: 0 12px 40px rgba(16,24,40,.14), 0 2px 8px rgba(16,24,40,.08);
+    --sans:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --r:10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0b0e13; --surface:#12161d; --surface-2:#181d26; --rule:#242b36; --rule-soft:#1c222b;
+      --ink:#e8edf3; --muted:#8391a3; --faint:#5f6c7d;
+      --signal:#5aa9ff; --signal-ink:#0b0e13; --waste:#ffb54d; --bad:#ff6b6b; --good:#3ddc97;
+      --shadow: 0 16px 48px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0b0e13; --surface:#12161d; --surface-2:#181d26; --rule:#242b36; --rule-soft:#1c222b;
+    --ink:#e8edf3; --muted:#8391a3; --faint:#5f6c7d;
+    --signal:#5aa9ff; --signal-ink:#0b0e13; --waste:#ffb54d; --bad:#ff6b6b; --good:#3ddc97;
+    --shadow: 0 16px 48px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--ground); color:var(--ink); font:14px/1.5 var(--sans);
+         -webkit-font-smoothing:antialiased; overflow:hidden; }
+  button { font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+  button:focus-visible, [tabindex]:focus-visible { outline:2px solid var(--signal); outline-offset:2px; border-radius:6px; }
+  ::selection { background:var(--signal); color:var(--signal-ink); }
+
+  .app { display:grid; grid-template-rows:auto 1fr; height:100%; }
+
+  /* ---------- top bar: wordmark + the sentence ---------- */
+  .top { display:flex; align-items:center; gap:22px; padding:12px 18px; border-bottom:1px solid var(--rule);
+         background:var(--surface); z-index:5; }
+  .mark { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
+  .mark b { font-weight:600; letter-spacing:-0.01em; font-size:15px; }
+  .mark span { font:11px var(--mono); color:var(--faint); letter-spacing:.08em; text-transform:uppercase; }
+
+  .sentence { display:flex; flex-wrap:wrap; align-items:center; gap:4px 5px; flex:1; min-width:0;
+              font-size:14px; color:var(--muted); line-height:1.9; }
+  .sentence .w { white-space:nowrap; }
+  .tok { display:inline-flex; align-items:center; gap:5px; padding:1px 8px 1px 9px; border-radius:7px;
+         font:500 12.5px/1.6 var(--mono); color:var(--ink); background:var(--surface-2);
+         border:1px solid var(--rule); transition:border-color .12s, background .12s; white-space:nowrap; }
+  .tok:hover { border-color:var(--signal); }
+  .tok.empty { color:var(--faint); font-style:italic; }
+  .tok.on { border-color:var(--signal); }
+  .tok .caret { font-size:9px; color:var(--faint); }
+  .tok i { font-style:normal; color:var(--faint); font-size:11px; }
+  .top .right { display:flex; align-items:center; gap:8px; white-space:nowrap; }
+  .btn { padding:6px 11px; border-radius:7px; border:1px solid var(--rule); background:var(--surface-2);
+         font:500 12px/1.4 var(--sans); }
+  .btn:hover { border-color:var(--signal); }
+  .btn.primary { background:var(--signal); color:var(--signal-ink); border-color:var(--signal); }
+  .btn.danger { color:var(--bad); }
+  .btn.danger.on { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .btn kbd { font:11px var(--mono); color:inherit; opacity:.65; margin-left:6px; }
+
+  /* ---------- popover ---------- */
+  .pop { position:fixed; z-index:40; min-width:220px; max-width:320px; max-height:min(60vh,440px); overflow:auto;
+         background:var(--surface); border:1px solid var(--rule); border-radius:12px; box-shadow:var(--shadow);
+         padding:6px; }
+  .pop h4 { margin:6px 8px 4px; font:500 10px var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+  .pop .opt { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; text-align:left;
+              padding:7px 9px; border-radius:8px; font:13px/1.4 var(--sans); }
+  .pop .opt:hover { background:var(--surface-2); }
+  .pop .opt.on { background:var(--signal); color:var(--signal-ink); }
+  .pop .opt.on small { color:inherit; opacity:.8; }
+  .pop .opt small { font:11px var(--mono); color:var(--faint); }
+  .pop .opt[disabled] { opacity:.4; cursor:not-allowed; }
+  .pop .why { margin:4px 9px 8px; font:11px/1.45 var(--mono); color:var(--muted); }
+  .pop hr { border:0; border-top:1px solid var(--rule-soft); margin:6px 0; }
+
+  /* ---------- stage ---------- */
+  .stage { position:relative; min-height:0; }
+  #map { position:absolute; inset:0; }
+
+  .hud { position:absolute; z-index:3; pointer-events:none; }
+  .hud > * { pointer-events:auto; }
+  .hud.tl { left:16px; top:14px; display:flex; flex-wrap:wrap; gap:6px; max-width:60%; }
+  .hud.tr { right:16px; top:14px; }
+  .hud.bl { left:16px; bottom:16px; }
+  .hud.br { right:16px; bottom:16px; }
+
+  .chip { padding:6px 11px; border-radius:20px; border:1px solid var(--rule); background:color-mix(in srgb, var(--surface) 88%, transparent);
+          backdrop-filter:blur(8px); font:500 12px/1.4 var(--sans); color:var(--muted); transition:all .12s; }
+  .chip:hover { color:var(--ink); border-color:var(--signal); }
+  .chip.on { background:var(--signal); color:var(--signal-ink); border-color:var(--signal); }
+  .chip.danger.on { background:var(--bad); color:#fff; border-color:var(--bad); }
+
+  .readout { display:grid; grid-auto-flow:column; gap:0; border:1px solid var(--rule); border-radius:var(--r);
+             background:color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter:blur(8px); overflow:hidden; }
+  .readout div { padding:8px 14px; border-left:1px solid var(--rule-soft); min-width:96px; }
+  .readout div:first-child { border-left:0; }
+  .readout b { display:block; font:500 18px/1.15 var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-0.02em; }
+  .readout span { font:10px var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--faint); }
+  .readout .bad b { color:var(--bad); } .readout .warn b { color:var(--waste); }
+
+  .legend { display:flex; flex-direction:column; gap:6px; max-width:560px; padding:9px 12px; border:1px solid var(--rule);
+            border-radius:var(--r); background:color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter:blur(8px); }
+  .legend .row { display:flex; align-items:flex-start; gap:10px; }
+  .legend .row .vals { max-width:440px; }
+  .legend .ch { font:500 11px/1.9 var(--mono); color:var(--signal); min-width:68px; }
+  .legend .ch small { display:block; color:var(--faint); line-height:1.2; font-weight:400; }
+  .legend .vals { display:flex; flex-wrap:wrap; gap:4px; }
+  .sw { display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:6px; font:12px/1.4 var(--sans);
+        color:var(--muted); border:1px solid transparent; }
+  .sw:hover { background:var(--surface-2); color:var(--ink); }
+  .sw.on { border-color:var(--signal); color:var(--ink); }
+  .sw .dot { width:9px; height:9px; border-radius:50%; box-shadow:0 0 0 2px color-mix(in srgb, currentColor 0%, transparent); }
+  .sw .mark { font:12px var(--mono); }
+  .legend .note { font:11px/1.45 var(--mono); color:var(--faint); }
+  .legend .warn { font:11px/1.45 var(--mono); color:var(--waste); }
+  .hint { font:11px var(--mono); color:var(--faint); background:color-mix(in srgb, var(--surface) 80%, transparent);
+          padding:5px 9px; border-radius:7px; border:1px solid var(--rule-soft); }
+  .hint kbd { font:inherit; padding:0 4px; border:1px solid var(--rule); border-radius:4px; }
+
+  /* ---------- inspector ---------- */
+  .inspector { position:absolute; top:14px; right:16px; bottom:16px; width:330px; z-index:4;
+               background:color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter:blur(12px);
+               border:1px solid var(--rule); border-radius:14px; box-shadow:var(--shadow);
+               transform:translateX(24px); opacity:0; pointer-events:none; transition:transform .22s ease, opacity .18s ease;
+               display:flex; flex-direction:column; overflow:hidden; }
+  .inspector.open { transform:none; opacity:1; pointer-events:auto; }
+  .stage:has(.inspector.open) .hud.tr, .stage:has(.inspector.open) .hud.br { right:362px; }
+  .stage:has(.inspector.open) .hud.tl { max-width:calc(100% - 900px); }
+  .hud.tr, .hud.br { transition:right .22s ease; }
+  .inspector header { padding:16px 18px 12px; border-bottom:1px solid var(--rule-soft); display:flex; gap:10px; align-items:flex-start; }
+  .inspector header .kind { font:500 10px var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+  .inspector header h3 { margin:2px 0 0; font:600 17px/1.2 var(--sans); letter-spacing:-0.01em; word-break:break-word; }
+  .inspector header h3 small { display:block; font:400 12px var(--mono); color:var(--muted); margin-top:3px; }
+  .inspector header .x { margin-left:auto; color:var(--faint); font-size:18px; line-height:1; padding:2px 6px; }
+  .inspector .body { padding:12px 18px 16px; overflow:auto; flex:1; display:flex; flex-direction:column; gap:16px; }
+  .kv { display:grid; grid-template-columns:96px 1fr; gap:6px 12px; font-size:13px; }
+  .kv dt { color:var(--muted); font:12px/1.7 var(--mono); }
+  .kv dd { margin:0; font-variant-numeric:tabular-nums; }
+  .meter { height:5px; border-radius:3px; background:var(--rule-soft); overflow:hidden; margin-top:5px; }
+  .meter i { display:block; height:100%; background:var(--signal); border-radius:3px; }
+  .meter i.hot { background:var(--waste); } .meter i.crit { background:var(--bad); }
+  .state { display:inline-block; padding:2px 8px; border-radius:6px; font:500 11px var(--mono); letter-spacing:.06em; text-transform:uppercase; }
+  .state.ok { color:var(--good); background:color-mix(in srgb, var(--good) 14%, transparent); }
+  .state.degraded { color:var(--waste); background:color-mix(in srgb, var(--waste) 14%, transparent); }
+  .state.dead { color:var(--bad); background:color-mix(in srgb, var(--bad) 14%, transparent); }
+  .actions { display:flex; flex-wrap:wrap; gap:6px; }
+  .section h4 { margin:0 0 8px; font:500 10px var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+  .flows { display:flex; flex-direction:column; gap:4px; }
+  .flow { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:6px 8px; border-radius:7px;
+          font-size:12px; border:1px solid transparent; }
+  .flow:hover { background:var(--surface-2); border-color:var(--rule-soft); }
+  .flow .who { color:var(--ink); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .flow .who small { color:var(--faint); font:11px var(--mono); margin-left:6px; }
+  .flow .n { font:12px var(--mono); color:var(--muted); font-variant-numeric:tabular-nums; }
+  .flow .bar { grid-column:1 / -1; height:3px; border-radius:2px; background:var(--rule-soft); overflow:hidden; }
+  .flow .bar i { display:block; height:100%; background:var(--signal); }
+
+  /* ---------- knobs drawer: every knob, always visible when open ---------- */
+  .knobs { position:absolute; top:14px; left:16px; bottom:16px; width:318px; z-index:4;
+           background:color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter:blur(12px);
+           border:1px solid var(--rule); border-radius:14px; box-shadow:var(--shadow);
+           transform:translateX(-24px); opacity:0; pointer-events:none; transition:transform .22s ease, opacity .18s ease;
+           display:flex; flex-direction:column; overflow:hidden; }
+  .knobs.open { transform:none; opacity:1; pointer-events:auto; }
+  .knobs header { padding:14px 16px 10px; border-bottom:1px solid var(--rule-soft); display:flex; align-items:center; gap:8px; }
+  .knobs header b { font-weight:600; }
+  .knobs header span { font:11px var(--mono); color:var(--faint); }
+  .knobs header .x { margin-left:auto; color:var(--faint); font-size:18px; line-height:1; padding:2px 6px; }
+  .knobs .body { overflow:auto; flex:1; padding:6px 0 14px; }
+  .knobs details { border-bottom:1px solid var(--rule-soft); }
+  .knobs summary { list-style:none; cursor:pointer; padding:10px 16px; font:500 10px var(--mono); letter-spacing:.12em;
+                   text-transform:uppercase; color:var(--faint); display:flex; justify-content:space-between; }
+  .knobs summary::-webkit-details-marker { display:none; }
+  .knobs summary:hover { color:var(--ink); }
+  .knobs summary i { font-style:normal; color:var(--faint); }
+  .knobs details[open] summary i { transform:rotate(90deg); display:inline-block; }
+  .knobs .sec { padding:2px 16px 12px; display:flex; flex-direction:column; gap:8px; }
+  .knobs .row { display:grid; grid-template-columns:86px 1fr; gap:6px 10px; align-items:center; }
+  .knobs .row label { font:11px var(--mono); color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .knobs select, .knobs textarea, .knobs input[type=range] { width:100%; }
+  .knobs select { font:12px var(--mono); background:var(--surface-2); color:var(--ink); border:1px solid var(--rule); border-radius:6px; padding:4px 6px; }
+  .knobs .chips { display:flex; flex-wrap:wrap; gap:4px; }
+  .knobs .chip { padding:3px 8px; font-size:11px; backdrop-filter:none; background:var(--surface-2); }
+  .knobs .chip.on { background:var(--signal); color:var(--signal-ink); border-color:var(--signal); }
+  .knobs .chip small { opacity:.7; margin-left:3px; font-family:var(--mono); }
+  .knobs .field { display:flex; flex-direction:column; gap:4px; }
+  .knobs .field > span { font:11px var(--mono); color:var(--muted); }
+  .knobs textarea { font:11px/1.45 var(--mono); background:var(--surface-2); color:var(--ink); border:1px solid var(--rule); border-radius:6px; padding:8px; min-height:190px; resize:vertical; }
+  .knobs .check { display:flex; align-items:center; gap:7px; font:12px var(--sans); color:var(--ink); }
+  .knobs .check input { accent-color:var(--signal); }
+  .knobs .actions { display:flex; flex-wrap:wrap; gap:6px; }
+  .knobs .why { font:11px/1.45 var(--mono); color:var(--faint); }
+  .stage:has(.knobs.open) .hud.tl { left:350px; max-width:calc(100% - 900px); }
+  .stage:has(.knobs.open) .hud.bl { left:350px; }
+  .hud.tl, .hud.bl { transition:left .22s ease; }
+
+  /* ---------- palette ---------- */
+  .veil { position:fixed; inset:0; z-index:50; background:rgba(8,10,14,.35); display:none; align-items:flex-start; justify-content:center; padding-top:14vh; }
+  .veil.open { display:flex; }
+  .palette { width:min(640px, 92vw); background:var(--surface); border:1px solid var(--rule); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; }
+  .palette input { width:100%; padding:16px 18px; border:0; background:transparent; color:var(--ink); font:16px var(--sans); outline:none; }
+  .palette .sugg { border-top:1px solid var(--rule-soft); padding:6px; max-height:40vh; overflow:auto; }
+  .palette .sugg button { display:flex; justify-content:space-between; gap:12px; width:100%; text-align:left; padding:9px 12px; border-radius:8px; font-size:13px; }
+  .palette .sugg button:hover, .palette .sugg button.on { background:var(--surface-2); }
+  .palette .sugg small { font:11px var(--mono); color:var(--faint); }
+  .palette footer { display:flex; justify-content:space-between; padding:8px 14px; border-top:1px solid var(--rule-soft); font:11px var(--mono); color:var(--faint); }
+  .palette footer select { font:11px var(--mono); background:var(--surface-2); color:var(--ink); border:1px solid var(--rule); border-radius:5px; }
+
+  /* (i) hints: any element with data-hint shows a small mark and a tooltip on hover or focus. */
+  [data-hint] { position:relative; }
+  .btn[data-hint]::after, .chip[data-hint]::after, .tok[data-hint]::after {
+    content:"i"; display:inline-flex; align-items:center; justify-content:center; margin-left:6px;
+    width:12px; height:12px; border-radius:50%; border:1px solid currentColor; font:600 8px/1 var(--mono);
+    opacity:.45; flex:none; }
+  .tok[data-hint]::after { margin-left:2px; }
+  #tip { position:fixed; z-index:70; max-width:300px; padding:8px 10px; border-radius:8px; background:var(--ink); color:var(--ground);
+         font:12px/1.45 var(--sans); box-shadow:var(--shadow); pointer-events:none; opacity:0; transition:opacity .12s; }
+  #tip.show { opacity:1; }
+
+  .toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:60; padding:9px 14px; border-radius:9px;
+           background:var(--ink); color:var(--ground); font:12px/1.4 var(--mono); box-shadow:var(--shadow); opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+  @media (max-width: 900px) {
+    .inspector { width:auto; left:16px; top:auto; max-height:52%; }
+    .hud.bl { display:none; }
+    .sentence { font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="mark"><b>trace-viz</b><span>studio</span></div>
+    <div class="sentence" id="sentence"></div>
+    <div class="right">
+      <button class="btn" id="btn-knobs" data-hint="Open the drawer with every knob — filters, all channels, playback, multi-kill, and the spec as JSON.">knobs<kbd>K</kbd></button>
+      <button class="btn" id="btn-world" hidden data-hint="Show the mesh as a 3D world of planes and silhouettes.">world<kbd>W</kbd></button>
+      <button class="btn" id="btn-numbers" data-hint="Print rps and latency on every edge. Off by default: the shapes say it, the hover card has the figures.">numbers<kbd>N</kbd></button>
+      <button class="btn primary" id="btn-ask" data-hint="Ask for a view in words. A model composes a spec from the registry; it is validated field by field before it draws.">ask<kbd>⌘K</kbd></button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div id="map"></div>
+
+    <div class="hud tl" id="scenarios"></div>
+    <div class="hud tr"><div class="readout" id="readout"></div></div>
+    <div class="hud bl"><div class="legend" id="legend"></div></div>
+    <div class="hud br"><div class="hint" id="hint"></div></div>
+
+    <aside class="knobs" id="knobs" aria-label="All knobs">
+      <header><b>every knob</b><span>nothing hidden</span><button class="x" id="knobs-close" aria-label="close">×</button></header>
+      <div class="body" id="knobs-body"></div>
+    </aside>
+    <aside class="inspector" id="inspector" aria-live="polite"></aside>
+  </div>
+</div>
+
+<div class="veil" id="veil">
+  <div class="palette" role="dialog" aria-label="Ask for a view">
+    <input id="ask" type="text" placeholder="Ask for a view — “cluster tightly coupled services in 3D”, or “kill identity”" autocomplete="off" />
+    <div class="sugg" id="sugg"></div>
+    <footer>
+      <span id="ask-note">enter to compose · esc to close</span>
+      <span id="tierRow" hidden>model <select id="tier"><option value="quick">quick</option><option value="default" selected>default</option><option value="complex">complex</option></select></span>
+    </footer>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div id="tip" role="tooltip"></div>
+
+<script src="dist/trace-viz.global.js"></script>
+<script>
+const { TraceLight, CHANNELS, describeTable, heuristicSpec, proposeSpec, formatRps, formatLatency, formatBytes } = tracelight;
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------------------
+// state
+// ---------------------------------------------------------------------------
+let TABLE, SCHEMA, tl;
+// The opening view: production only, both regions coloured, and one key API
+// path exploded - the gateway's call into orders - with everything else
+// collapsed. Every default binding is written out so the sentence says
+// exactly what the picture encodes, rather than relying on implicit defaults.
+let spec = {
+  nodeKey: ['service'],
+  where: { env: ['prod'] },
+  focus: { match: { service: 'orders' }, expandBy: ['api'] },
+  channels: {
+    density: { field: 'rps' },
+    speed: { field: 'latencyMs' },
+    radius: { field: 'bytes' },
+    hue: { field: 'region' },
+    coupling: { field: 'failure' },
+    nodeFill: { field: 'kind' },
+    column: { field: 'team', order: ['Outside', 'Identity', 'Payments', 'Risk'] },
+    halo: { field: 'errorRate' },
+  },
+  layout: { rowSort: 'auto' },
+  mode: 'flat',
+  world: { instances: 'instances', gauges: ['cpu', 'mem'] },
+};
+const DEFAULT_SPEC = structuredClone(spec);
+let selected = null;
+let pinnedHighlight = null;
+let lastView = null;
+let lastBottomInset = -1;
+let toastTimer;
+let numbers = false;
+
+// The sentence. Each slot is one knob, phrased the way you would say it.
+const SLOTS = [
+  { id: 'nodeKey', lead: 'A box is one', kind: 'nodeKey' },
+  { id: 'where',   lead: 'in',           kind: 'where' },
+  { id: 'hue',     lead: '· colour',     kind: 'channel', channel: 'hue' },
+  { id: 'density', lead: '· density',    kind: 'channel', channel: 'density' },
+  { id: 'speed',   lead: '· speed 1/',   kind: 'channel', channel: 'speed' },
+  { id: 'radius',  lead: '· size',       kind: 'channel', channel: 'radius' },
+  { id: 'coupling',lead: '· coupling',   kind: 'channel', channel: 'coupling' },
+  { id: 'column',  lead: '· grouped by', kind: 'channel', channel: 'column' },
+  { id: 'halo',    lead: '· halo',       kind: 'channel', channel: 'halo' },
+  { id: 'more',    lead: '·',            kind: 'more' },
+];
+// Parked: particle shape until the particle system settles; distance until its
+// layout is worth showing; world view until it earns its place.
+const HIDDEN_CHANNELS = new Set(['glyph', 'distance']);
+const WORLD_ENABLED = false;
+
+const SCENARIOS = [
+  { label: 'Where does eu-west go?', note: 'Colour by region, isolate eu-west: the traffic you are looking at, in context.',
+    apply: (s) => ({ ...s, nodeKey: ['service'], where: { env: ['prod'] }, channels: structuredClone(DEFAULT_SPEC.channels), killed: [], focus: undefined }),
+    after: () => setHighlight({ field: 'region', value: 'eu-west' }, true) },
+  { label: 'Explode orders into its APIs', note: 'One service at API resolution; everything else stays a single box.',
+    apply: (s) => ({ ...s, nodeKey: ['service'], focus: { match: { service: 'orders' }, expandBy: ['api'] }, killed: [] }) },
+  { label: 'What if identity dies?', note: 'Fail-closed links carry the death upward; fail-open ones stop it.',
+    apply: (s) => ({ ...s, focus: undefined, channels: { ...s.channels, coupling: { field: 'failure' } } }),
+    after: () => { spec.killed = ['identity']; tl.kill(spec.killed); } },
+  { label: 'Who is failing?', note: 'Halo is error rate: the red rings are the boxes whose callers are getting errors.',
+    apply: (s) => ({ ...s, channels: { ...s.channels, halo: { field: 'errorRate' } }, killed: [], focus: undefined }) },
+  { label: 'Group by kind instead', note: 'Same data, regrouped: services, stores, caches and queues each in their own region.',
+    apply: (s) => ({ ...s, channels: { ...s.channels, column: { field: 'kind', order: ['client', 'gateway', 'service', 'cache', 'queue', 'datastore'] } }, killed: [], focus: undefined }) },
+];
+
+// ---------------------------------------------------------------------------
+// boot
+// ---------------------------------------------------------------------------
+boot();
+async function boot() {
+  TABLE = typeof MESH !== 'undefined' ? MESH : await fetch('data/mesh.json').then((r) => r.json());
+  SCHEMA = describeTable(TABLE);
+  tl = new TraceLight($('map'), {
+    theme: pageTheme(), seed: 11, showEdgeLabels: false, showLegend: false,
+    insets: insets(),
+    onView: onView, onSelect: onSelectTarget, onHover: onHover,
+  });
+  watchTheme();
+  renderScenarios();
+  buildKnobs();
+  toggleKnobs(true);
+  apply();
+  toast('trace-viz studio · click anything · ⌘K to ask');
+}
+
+function apply() {
+  if (spec.channels) for (const k of Object.keys(spec.channels)) if (!spec.channels[k]) delete spec.channels[k];
+  tl.setTable(TABLE, spec);
+  renderSentence();
+  syncButtons();
+  syncKnobs();
+}
+
+// The HUD floats over the canvas; tell the layout where it is so nothing lands
+// underneath a panel. Measured, not guessed, so a taller legend claims more.
+function insets() {
+  const open = $('inspector')?.classList.contains('open');
+  const knobs = $('knobs')?.classList.contains('open');
+  const legendH = $('legend')?.offsetHeight ?? 0;
+  return { top: 58, right: open ? 366 : 16, bottom: Math.max(60, legendH + 34), left: knobs ? 352 : 16 };
+}
+function refit() { tl.setOptions({ insets: insets() }); }
+
+// ---------------------------------------------------------------------------
+// the sentence
+// ---------------------------------------------------------------------------
+function renderSentence() {
+  const host = $('sentence');
+  host.innerHTML = '';
+  for (const slot of SLOTS) {
+    const lead = document.createElement('span');
+    lead.className = 'w';
+    lead.textContent = slot.lead;
+    host.appendChild(lead);
+
+    const tok = document.createElement('button');
+    tok.className = 'tok';
+    tok.dataset.slot = slot.id;
+    const val = slotValue(slot);
+    if (!val) tok.classList.add('empty');
+    tok.innerHTML = `${val || 'nothing'} <span class="caret">▾</span>`;
+    tok.dataset.hint = slotHint(slot);
+    tok.onclick = (e) => openPopover(slot, tok, e);
+    host.appendChild(tok);
+  }
+  const mode = document.createElement('span');
+  mode.className = 'w';
+  mode.textContent = '.';
+  host.appendChild(mode);
+}
+
+// One sentence per knob, shown on hover as (i). Written for the person reading
+// the picture, not for the person who wrote the renderer.
+const CHANNEL_HINTS = {
+  density: 'How many particles a second travel an edge. Log-scaled with a contrast curve, so 50 rps is a trickle and 5,000 is a stream.',
+  speed: 'How fast particles move. Inverted: the higher the value, the slower they crawl — a slow hop looks slow.',
+  radius: 'How big each particle is. Square-root scaled, because area reads as quantity.',
+  hue: 'Particle colour. Binding a dimension here also splits each edge by it, so a two-region edge becomes two mixed streams.',
+  coupling: 'Failure semantics of the dependency. fail-closed draws as a rigid conduit that carries death upstream; fail-open as a breakaway link that stops it. Drives the blast radius when you kill something.',
+  column: 'Which dimension the boxes are grouped by. Same value, same column, drawn inside one region with the value at the top.',
+  halo: 'A ring around each box sized by a measure. Bound to errorRate it turns red and grows with the failure rate of what the box serves.',
+  nodeFill: 'Box colour by a dimension.',
+  dash: 'The line pattern under the particles, by a dimension.',
+  lane: 'Splits an edge into parallel tracks, one per value.',
+};
+function slotHint(slot) {
+  if (slot.kind === 'nodeKey') return 'What one box stands for. Pick more dimensions for finer boxes: service → service + api explodes every service into its endpoints.';
+  if (slot.kind === 'where') return 'Which records are kept before anything is drawn. Filtering is not dimming: the rest is gone from the picture and the numbers.';
+  if (slot.kind === 'more') return 'Every other channel, and reset.';
+  return CHANNEL_HINTS[slot.channel] ?? CHANNELS[slot.channel]?.summary ?? '';
+}
+
+function slotValue(slot) {
+  if (slot.kind === 'nodeKey') return spec.nodeKey.join(' + ');
+  if (slot.kind === 'where') {
+    const parts = Object.entries(spec.where ?? {}).filter(([, v]) => v?.length).map(([k, v]) => v.join('/'));
+    return parts.length ? parts.join(', ') : 'everything';
+  }
+  if (slot.kind === 'channel') return spec.channels?.[slot.channel]?.field ?? '';
+  if (slot.kind === 'more') {
+    const extra = Object.keys(spec.channels ?? {}).filter((c) => !SLOTS.some((sl) => sl.channel === c) && !HIDDEN_CHANNELS.has(c));
+    return extra.length ? `+${extra.length} more` : 'more…';
+  }
+  return '';
+}
+
+// ---------------------------------------------------------------------------
+// popovers
+// ---------------------------------------------------------------------------
+let pop = null;
+function closePopover() { pop?.remove(); pop = null; }
+
+function openPopover(slot, anchor, ev) {
+  ev?.stopPropagation();
+  if (pop && pop.dataset.slot === slot.id) return closePopover();
+  closePopover();
+  pop = document.createElement('div');
+  pop.className = 'pop';
+  pop.dataset.slot = slot.id;
+  pop.addEventListener('click', (e) => e.stopPropagation());
+
+  if (slot.kind === 'nodeKey') buildNodeKey(pop);
+  else if (slot.kind === 'where') buildWhere(pop);
+  else if (slot.kind === 'channel') buildChannel(pop, slot.channel);
+  else buildMore(pop);
+
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.min(r.left, innerWidth - pop.offsetWidth - 12) + 'px';
+  pop.style.top = r.bottom + 6 + 'px';
+}
+
+function opt(label, meta, on, onClick, disabled) {
+  const b = document.createElement('button');
+  b.className = 'opt' + (on ? ' on' : '');
+  if (disabled) b.disabled = true;
+  b.innerHTML = `<span>${label}</span>${meta ? `<small>${meta}</small>` : ''}`;
+  b.onclick = onClick;
+  return b;
+}
+
+function buildNodeKey(p) {
+  p.innerHTML = '<h4>what a box is</h4><div class="why">Pick one or more. Fewer means fewer, bigger boxes.</div>';
+  for (const d of SCHEMA.dimensions.filter((x) => x.endpoint && x.cardinality > 1)) {
+    const on = spec.nodeKey.includes(d.name);
+    p.appendChild(opt(d.name, `${d.cardinality} values`, on, () => {
+      spec.nodeKey = on ? spec.nodeKey.filter((k) => k !== d.name) : [...spec.nodeKey, d.name];
+      if (!spec.nodeKey.length) spec.nodeKey = [d.name];
+      delete spec.focus;
+      apply(); closePopover();
+    }));
+  }
+}
+
+function buildWhere(p) {
+  p.innerHTML = '<h4>keep only</h4>';
+  for (const d of SCHEMA.dimensions.filter((x) => x.cardinality > 1 && x.cardinality <= 8)) {
+    const h = document.createElement('h4'); h.textContent = d.name; h.style.marginTop = '10px'; p.appendChild(h);
+    const current = spec.where?.[d.name]?.[0] ?? '';
+    p.appendChild(opt('all', '', !current, () => { spec.where = { ...spec.where }; delete spec.where[d.name]; apply(); }));
+    for (const v of d.values) {
+      p.appendChild(opt(v, '', current === v, () => { spec.where = { ...spec.where, [d.name]: [v] }; apply(); }));
+    }
+  }
+}
+
+function fieldsFor(def) {
+  const dims = SCHEMA.dimensions.map((d) => ({ name: d.name, meta: `${d.cardinality} values`, kind: 'dimension', card: d.cardinality }));
+  const measures = [...SCHEMA.measures, ...SCHEMA.nodeAttrs].map((m) => ({ name: m, meta: 'measure', kind: 'measure' }));
+  if (def.accepts === 'measure') return measures;
+  if (def.accepts === 'dimension') return dims;
+  return [...dims, ...measures];
+}
+
+function buildChannel(p, channel) {
+  const def = CHANNELS[channel];
+  p.innerHTML = `<h4>${channel}</h4><div class="why">${def.summary}</div>`;
+  const current = spec.channels?.[channel]?.field ?? '';
+  p.appendChild(opt('nothing', '', !current, () => { spec.channels = { ...spec.channels }; delete spec.channels[channel]; apply(); closePopover(); }));
+  for (const f of fieldsFor(def)) {
+    const tooMany = def.maxCardinality && f.kind === 'dimension' && f.card > def.maxCardinality;
+    p.appendChild(opt(f.name, tooMany ? `too many for ${channel}` : f.meta, current === f.name, () => {
+      const keep = spec.channels?.[channel]?.field === f.name ? spec.channels[channel] : {};
+      spec.channels = { ...spec.channels, [channel]: { ...keep, field: f.name } };
+      apply(); closePopover();
+    }, tooMany));
+  }
+}
+
+function buildMore(p) {
+  p.innerHTML = '<h4>every other channel</h4>';
+  for (const [name, def] of Object.entries(CHANNELS)) {
+    if (SLOTS.some((sl) => sl.channel === name) || HIDDEN_CHANNELS.has(name)) continue;
+    const row = document.createElement('div');
+    row.className = 'opt';
+    row.style.cursor = 'default';
+    const current = spec.channels?.[name]?.field ?? '';
+    const sel = document.createElement('select');
+    sel.style.cssText = 'font:12px var(--mono);background:var(--surface-2);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:3px 6px;max-width:150px';
+    sel.innerHTML = '<option value="">—</option>' + fieldsFor(def).filter((f) => !(def.maxCardinality && f.kind === 'dimension' && f.card > def.maxCardinality)).map((f) => `<option>${f.name}</option>`).join('');
+    sel.value = current;
+    sel.title = def.summary;
+    sel.onchange = () => { spec.channels = { ...spec.channels }; if (sel.value) spec.channels[name] = { field: sel.value }; else delete spec.channels[name]; apply(); };
+    row.innerHTML = `<span title="${def.summary}">${name}</span>`;
+    row.appendChild(sel);
+    p.appendChild(row);
+  }
+  const hr = document.createElement('hr'); p.appendChild(hr);
+  p.appendChild(opt('reset everything', '', false, () => { spec = structuredClone(DEFAULT_SPEC); clearSelection(); setHighlight(null); apply(); closePopover(); }));
+}
+
+document.addEventListener('click', () => closePopover());
+
+// ---------------------------------------------------------------------------
+// the knobs drawer - the long-form of the sentence. Everything the renderer
+// can take, laid out at once, plus the raw spec for anything the UI has not
+// thought of yet. The sentence is the fast path; this is the complete one.
+// ---------------------------------------------------------------------------
+let playback = { speed: 1, animate: true, morphMs: 900 };
+
+function buildKnobs() {
+  const body = $('knobs-body');
+  body.innerHTML = '';
+  const section = (title, open, build) => {
+    const d = document.createElement('details');
+    d.open = open;
+    d.innerHTML = `<summary>${title}<i>›</i></summary>`;
+    const sec = document.createElement('div');
+    sec.className = 'sec';
+    build(sec);
+    d.appendChild(sec);
+    body.appendChild(d);
+  };
+
+  section('what a box is', true, (sec) => {
+    sec.innerHTML = '<div class="why">one or more; fewer means fewer, bigger boxes</div>';
+    const chips = document.createElement('div'); chips.className = 'chips'; chips.id = 'k-nodekey';
+    for (const d of SCHEMA.dimensions.filter((x) => x.endpoint && x.cardinality > 1)) {
+      const b = document.createElement('button'); b.className = 'chip'; b.dataset.dim = d.name;
+      b.innerHTML = `${d.name}<small>${d.cardinality}</small>`;
+      b.onclick = () => {
+        const on = spec.nodeKey.includes(d.name);
+        spec.nodeKey = on ? spec.nodeKey.filter((k) => k !== d.name) : [...spec.nodeKey, d.name];
+        if (!spec.nodeKey.length) spec.nodeKey = [d.name];
+        delete spec.focus; apply();
+      };
+      chips.appendChild(b);
+    }
+    sec.appendChild(chips);
+    const f = document.createElement('div'); f.className = 'field';
+    f.innerHTML = `<span>focus one service into its APIs</span>`;
+    const sel = document.createElement('select'); sel.id = 'k-focus';
+    const services = SCHEMA.dimensions.find((d) => d.name === 'service')?.values ?? [];
+    sel.innerHTML = '<option value="">none</option>' + services.map((v) => `<option>${v}</option>`).join('');
+    sel.onchange = () => { if (sel.value) spec.focus = { match: { service: sel.value }, expandBy: ['api'] }; else delete spec.focus; apply(); };
+    f.appendChild(sel); sec.appendChild(f);
+  });
+
+  section('filters', true, (sec) => {
+    sec.innerHTML = '<div class="why">pick several values to keep more than one</div>';
+    for (const d of SCHEMA.dimensions.filter((x) => x.cardinality > 1 && x.cardinality <= 12)) {
+      const f = document.createElement('div'); f.className = 'field';
+      f.innerHTML = `<span>${d.name}</span>`;
+      const chips = document.createElement('div'); chips.className = 'chips'; chips.dataset.filter = d.name;
+      for (const v of d.values) {
+        const b = document.createElement('button'); b.className = 'chip'; b.dataset.value = v; b.textContent = v;
+        b.onclick = () => {
+          const cur = new Set(spec.where?.[d.name] ?? []);
+          cur.has(v) ? cur.delete(v) : cur.add(v);
+          spec.where = { ...spec.where };
+          if (cur.size && cur.size < d.cardinality) spec.where[d.name] = [...cur]; else delete spec.where[d.name];
+          apply();
+        };
+        chips.appendChild(b);
+      }
+      f.appendChild(chips); sec.appendChild(f);
+    }
+  });
+
+  section('channels', true, (sec) => {
+    for (const [name, def] of Object.entries(CHANNELS)) {
+      if (HIDDEN_CHANNELS.has(name)) continue;
+      const row = document.createElement('div'); row.className = 'row';
+      row.innerHTML = `<label title="${def.summary}">${name}</label>`;
+      const sel = document.createElement('select'); sel.dataset.channel = name; sel.title = def.summary;
+      sel.dataset.hint = CHANNEL_HINTS[name] ?? def.summary;
+      row.querySelector('label').dataset.hint = CHANNEL_HINTS[name] ?? def.summary;
+      sel.innerHTML = '<option value="">—</option>' + fieldsFor(def).map((f) => {
+        const tooMany = def.maxCardinality && f.kind === 'dimension' && f.card > def.maxCardinality;
+        return `<option ${tooMany ? 'disabled' : ''}>${f.name}</option>`;
+      }).join('');
+      sel.onchange = () => {
+        spec.channels = { ...spec.channels };
+        const keep = spec.channels[name]?.field === sel.value ? spec.channels[name] : {};
+        if (sel.value) spec.channels[name] = { ...keep, field: sel.value }; else delete spec.channels[name];
+        apply();
+      };
+      row.appendChild(sel); sec.appendChild(row);
+
+      if (name === 'distance') {
+        // How hard coupling pulls. 0 is off, 1 is the default, 3 is emphatic.
+        const r = document.createElement('div'); r.className = 'row';
+        r.innerHTML = '<label>· strength</label>';
+        const range = document.createElement('input'); range.type = 'range'; range.min = '0'; range.max = '3'; range.step = '0.1'; range.id = 'k-strength';
+        range.oninput = () => { spec.channels = { ...spec.channels, distance: { ...(spec.channels?.distance ?? { field: 'share' }), strength: Number(range.value) } }; apply(); };
+        r.appendChild(range); sec.appendChild(r);
+      }
+      if (name === 'column') {
+        // The left-to-right sequence of columns, and how rows sort inside them.
+        const holder = document.createElement('div'); holder.className = 'field'; holder.id = 'k-column-order';
+        sec.appendChild(holder);
+        const rs = document.createElement('div'); rs.className = 'row';
+        rs.innerHTML = '<label>· rows by</label>';
+        const rsel = document.createElement('select'); rsel.id = 'k-rowsort';
+        rsel.innerHTML = '<option value="auto">fewest crossings</option><option value="name">name</option><option value="traffic">traffic</option>';
+        rsel.onchange = () => { spec.layout = { ...spec.layout, rowSort: rsel.value }; apply(); };
+        rs.appendChild(rsel); sec.appendChild(rs);
+      }
+    }
+  });
+
+  if (WORLD_ENABLED) section('world', false, (sec) => {
+    const dims = SCHEMA.dimensions.filter((d) => d.cardinality <= 8);
+    const row = (label, el) => { const r = document.createElement('div'); r.className = 'row'; r.innerHTML = `<label>${label}</label>`; r.appendChild(el); sec.appendChild(r); return el; };
+    const mode = row('mode', document.createElement('select'));
+    mode.id = 'k-mode'; mode.innerHTML = '<option value="flat">flat map</option><option value="world">3D world</option>';
+    mode.onchange = () => { spec.mode = mode.value; apply(); };
+    const tier = row('tier by', document.createElement('select'));
+    tier.id = 'k-tierby'; tier.innerHTML = '<option value="">kind (default)</option>' + dims.map((d) => `<option>${d.name}</option>`).join('');
+    tier.onchange = () => { spec.world = { ...spec.world }; if (tier.value) spec.world.tierBy = tier.value; else delete spec.world.tierBy; delete spec.world.tiers; apply(); };
+    const comp = row('shape by', document.createElement('select'));
+    comp.id = 'k-compby'; comp.innerHTML = '<option value="">engine / kind (default)</option>' + dims.map((d) => `<option>${d.name}</option>`).join('');
+    comp.onchange = () => { spec.world = { ...spec.world }; if (comp.value) spec.world.componentBy = comp.value; else delete spec.world.componentBy; apply(); };
+    const inst = row('mass', document.createElement('select'));
+    inst.id = 'k-inst'; inst.innerHTML = '<option value="">none</option>' + SCHEMA.nodeAttrs.map((a) => `<option>${a}</option>`).join('');
+    inst.onchange = () => { spec.world = { ...spec.world }; if (inst.value) spec.world.instances = inst.value; else spec.world.instances = '__none__'; apply(); };
+    const g = document.createElement('div'); g.className = 'field'; g.innerHTML = '<span>gauges on the body</span>';
+    const chips = document.createElement('div'); chips.className = 'chips'; chips.id = 'k-gauges';
+    for (const a of SCHEMA.nodeAttrs) {
+      const b = document.createElement('button'); b.className = 'chip'; b.dataset.value = a; b.textContent = a;
+      b.onclick = () => { const cur = new Set(spec.world?.gauges ?? []); cur.has(a) ? cur.delete(a) : cur.add(a); spec.world = { ...spec.world, gauges: [...cur] }; apply(); };
+      chips.appendChild(b);
+    }
+    g.appendChild(chips); sec.appendChild(g);
+    const yaw = row('camera', document.createElement('input'));
+    yaw.type = 'range'; yaw.min = '-3.14'; yaw.max = '3.14'; yaw.step = '0.01'; yaw.id = 'k-yaw';
+    yaw.oninput = () => { spec.world = { ...spec.world, yaw: Number(yaw.value) }; tl.setYaw(Number(yaw.value)); };
+    sec.insertAdjacentHTML('beforeend', '<div class="why">components come from the registry: ' + Object.keys(tracelight.COMPONENTS).join(', ') + '</div>');
+  });
+
+  section('playback', false, (sec) => {
+    const row = (label, el) => { const r = document.createElement('div'); r.className = 'row'; r.innerHTML = `<label>${label}</label>`; r.appendChild(el); sec.appendChild(r); return el; };
+    const speed = row('speed', document.createElement('input'));
+    speed.type = 'range'; speed.min = '0'; speed.max = '2.5'; speed.step = '0.1'; speed.value = '1'; speed.id = 'k-speed';
+    speed.oninput = () => { playback.speed = Number(speed.value); tl.setOptions({ speed: playback.speed }); };
+    const morph = row('morph ms', document.createElement('input'));
+    morph.type = 'range'; morph.min = '0'; morph.max = '2000'; morph.step = '50'; morph.value = '900'; morph.id = 'k-morph';
+    morph.oninput = () => { playback.morphMs = Number(morph.value); tl.setOptions({ morphMs: playback.morphMs }); };
+    const checks = document.createElement('div'); checks.className = 'field';
+    checks.innerHTML = `
+      <label class="check"><input type="checkbox" id="k-animate" checked /> animate particles</label>
+      <label class="check" hidden><input type="checkbox" id="k-orbit" checked /> orbit the camera in world view</label>
+      <label class="check"><input type="checkbox" id="k-numbers" /> numbers on edges</label>
+      <label class="check"><input type="checkbox" id="k-legend" /> legend strip on canvas</label>`;
+    sec.appendChild(checks);
+    // Not in the document yet, so query the fragment rather than the page.
+    checks.querySelector('#k-animate').onchange = (e) => { playback.animate = e.target.checked; tl.setOptions({ animate: playback.animate }); };
+    checks.querySelector('#k-orbit').onchange = (e) => tl.setOptions({ orbit: e.target.checked });
+    checks.querySelector('#k-numbers').onchange = (e) => { numbers = e.target.checked; tl.setOptions({ showEdgeLabels: numbers }); syncButtons(); };
+    checks.querySelector('#k-legend').onchange = (e) => tl.setOptions({ showLegend: e.target.checked });
+    const theme = row('theme', document.createElement('select'));
+    theme.innerHTML = '<option value="">follow page</option><option value="dark">dark</option><option value="light">light</option>';
+    theme.onchange = () => { if (theme.value) document.documentElement.setAttribute('data-theme', theme.value); else document.documentElement.removeAttribute('data-theme'); };
+  });
+
+  section('blast radius', false, (sec) => {
+    sec.innerHTML = '<div class="why">kill several at once</div>';
+    const chips = document.createElement('div'); chips.className = 'chips'; chips.id = 'k-killed';
+    sec.appendChild(chips);
+    const a = document.createElement('div'); a.className = 'actions';
+    const revive = document.createElement('button'); revive.className = 'btn'; revive.textContent = 'revive all';
+    revive.onclick = () => { spec.killed = []; tl.kill([]); apply(); };
+    a.appendChild(revive); sec.appendChild(a);
+  });
+
+  section('the spec itself', false, (sec) => {
+    sec.innerHTML = '<div class="why">edit and apply - this is exactly what the model emits and what <code>setSpec</code> takes</div>';
+    const ta = document.createElement('textarea'); ta.id = 'k-spec'; ta.spellcheck = false;
+    sec.appendChild(ta);
+    const a = document.createElement('div'); a.className = 'actions';
+    const applyB = document.createElement('button'); applyB.className = 'btn primary'; applyB.textContent = 'apply';
+    applyB.onclick = () => { try { spec = JSON.parse(ta.value); clearSelection(); apply(); toast('spec applied'); } catch (e) { toast('not valid JSON: ' + e.message); } };
+    const copy = document.createElement('button'); copy.className = 'btn'; copy.textContent = 'copy';
+    copy.onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(spec, null, 2)); toast('copied'); } catch { toast('clipboard unavailable'); } };
+    const png = document.createElement('button'); png.className = 'btn'; png.textContent = 'export png';
+    png.onclick = async () => {
+      // A hosted page cannot download on its own; it asks the viewer through
+      // the downloads capability. Outside that host, a plain link is fine.
+      const dl = window.claude?.use ? await window.claude.use('downloads').catch(() => null) : null;
+      if (dl) {
+        try {
+          const blob = await (await fetch(tl.toDataURL())).blob();
+          await dl.save({ filename: 'tracelight.png', data: blob });
+          toast('saved');
+        } catch (e) { toast(e?.code === 'declined' ? 'not saved' : 'could not save here'); }
+      } else {
+        const a = document.createElement('a'); a.href = tl.toDataURL(); a.download = 'tracelight.png'; a.click();
+      }
+    };
+    const reset = document.createElement('button'); reset.className = 'btn danger'; reset.textContent = 'reset';
+    reset.onclick = () => { spec = structuredClone(DEFAULT_SPEC); clearSelection(); setHighlight(null); apply(); };
+    a.append(applyB, copy, png, reset); sec.appendChild(a);
+  });
+}
+
+function syncKnobs() {
+  if (!$('k-nodekey')) return;
+  for (const b of $('k-nodekey').children) b.classList.toggle('on', spec.nodeKey.includes(b.dataset.dim));
+  const focus = $('k-focus'); if (focus) focus.value = spec.focus?.match?.service ?? '';
+  for (const chips of document.querySelectorAll('[data-filter]')) {
+    const cur = spec.where?.[chips.dataset.filter] ?? [];
+    for (const b of chips.children) b.classList.toggle('on', cur.includes(b.dataset.value));
+  }
+  for (const sel of document.querySelectorAll('#knobs-body select[data-channel]')) sel.value = spec.channels?.[sel.dataset.channel]?.field ?? '';
+  if ($('k-strength')) $('k-strength').value = String(spec.channels?.distance?.strength ?? 1);
+  $('k-rowsort').value = spec.layout?.rowSort ?? 'auto';
+  renderColumnOrder();
+  if ($('k-mode')) {
+    $('k-mode').value = spec.mode ?? 'flat';
+    $('k-tierby').value = spec.world?.tierBy ?? '';
+    $('k-compby').value = spec.world?.componentBy ?? '';
+    $('k-inst').value = spec.world?.instances && spec.world.instances !== '__none__' ? spec.world.instances : '';
+    for (const b of $('k-gauges').children) b.classList.toggle('on', (spec.world?.gauges ?? []).includes(b.dataset.value));
+    $('k-yaw').value = String(spec.world?.yaw ?? tl.getYaw());
+  }
+  $('k-numbers').checked = numbers;
+  const killed = spec.killed ?? [];
+  const kill = $('k-killed'); kill.innerHTML = '';
+  for (const n of tl.getScene().nodes) {
+    const b = document.createElement('button'); b.className = 'chip' + (killed.includes(n.id) ? ' on danger' : ''); b.textContent = n.label;
+    b.onclick = () => { const k = new Set(spec.killed ?? []); k.has(n.id) ? k.delete(n.id) : k.add(n.id); spec.killed = [...k]; tl.kill(spec.killed); syncKnobs(); };
+    kill.appendChild(b);
+  }
+  if (document.activeElement !== $('k-spec')) $('k-spec').value = JSON.stringify(spec, null, 2);
+}
+
+// The column sequence as a reorderable list. Values come from what the
+// projection actually produced, so the list is never stale.
+function renderColumnOrder() {
+  const host = $('k-column-order');
+  const binding = spec.channels?.column;
+  if (!binding) { host.innerHTML = ''; return; }
+  const group = tl.getLegend().find((g) => g.channel === 'column');
+  const values = group ? group.swatches.map((sw) => sw.value) : [];
+  host.innerHTML = `<span>column order · <button class="chip" data-sort="name">a→z</button> <button class="chip" data-sort="traffic">by traffic</button></span>`;
+  const list = document.createElement('div'); list.className = 'chips';
+  values.forEach((v, i) => {
+    const b = document.createElement('button'); b.className = 'chip on'; b.title = 'click to move left, shift-click to move right';
+    b.innerHTML = `${i + 1} ${v}`;
+    b.onclick = (e) => {
+      const order = [...values];
+      const j = e.shiftKey ? Math.min(order.length - 1, i + 1) : Math.max(0, i - 1);
+      [order[i], order[j]] = [order[j], order[i]];
+      spec.channels = { ...spec.channels, column: { ...binding, order } };
+      apply();
+    };
+    list.appendChild(b);
+  });
+  host.appendChild(list);
+  host.querySelector('[data-sort="name"]').onclick = () => { spec.channels = { ...spec.channels, column: { ...binding, order: [...values].sort() } }; apply(); };
+  host.querySelector('[data-sort="traffic"]').onclick = () => {
+    const traffic = new Map();
+    for (const n of tl.getScene().nodes) {
+      const v = n.key[binding.field] ?? (n.spans[binding.field]?.length === 1 ? n.spans[binding.field][0] : undefined);
+      if (v) traffic.set(v, (traffic.get(v) ?? 0) + n.inboundRps + n.outboundRps);
+    }
+    spec.channels = { ...spec.channels, column: { ...binding, order: [...values].sort((a, b) => (traffic.get(b) ?? 0) - (traffic.get(a) ?? 0)) } };
+    apply();
+  };
+}
+
+function toggleKnobs(force) {
+  const k = $('knobs');
+  const open = force ?? !k.classList.contains('open');
+  k.classList.toggle('open', open);
+  $('btn-knobs').classList.toggle('primary', open);
+  refit();
+}
+$('btn-knobs').onclick = () => toggleKnobs();
+$('knobs-close').onclick = () => toggleKnobs(false);
+
+// ---------------------------------------------------------------------------
+// scenarios
+// ---------------------------------------------------------------------------
+function renderScenarios() {
+  const host = $('scenarios');
+  host.innerHTML = '';
+  for (const sc of SCENARIOS) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = sc.label;
+    b.dataset.hint = sc.note;
+    b.onclick = () => runScenario(sc, b);
+    host.appendChild(b);
+  }
+}
+function runScenario(sc, btn) {
+  for (const b of $('scenarios').children) b.classList.toggle('on', b === btn);
+  setHighlight(null);
+  clearSelection();
+  spec = sc.apply(structuredClone(spec));
+  apply();
+  sc.after?.();
+  toast(sc.note);
+}
+
+// ---------------------------------------------------------------------------
+// readout + legend
+// ---------------------------------------------------------------------------
+function onView(info) {
+  lastView = info;
+  const s = info.stats;
+  $('readout').innerHTML = [
+    cell(formatRps(s.totalRps) + '/s', 'traffic drawn'),
+    cell(`${s.nodes} · ${s.edges}`, 'boxes · flows'),
+    cell(`${s.records}/${s.records + s.filtered}`, 'records', s.filtered ? 'warn' : ''),
+    cell(`${s.deadNodes} · ${s.degradedNodes}`, 'dead · degraded', s.deadNodes ? 'bad' : ''),
+  ].join('');
+  renderLegend(info);
+  if (selected) renderInspector(selected);
+  $('hint').innerHTML = 'hover any control for what it does · click a box to inspect · double-click to expand · <kbd>esc</kbd> clears';
+}
+function cell(v, l, cls) { return `<div class="${cls || ''}"><b>${v}</b><span>${l}</span></div>`; }
+
+const MEASURE_LEAD = { density: 'density', speed: 'speed 1/', radius: 'size', halo: 'halo' };
+function renderLegend(info) {
+  const host = $('legend');
+  // Measure channels have no swatches to show; one line says what drives what.
+  const measures = info.legend.filter((g) => g.kind === 'measure' && MEASURE_LEAD[g.channel]);
+  const measureLine = measures.length
+    ? `<div class="note">${measures.map((g) => `${MEASURE_LEAD[g.channel]} <b>${g.field}</b>`).join(' · ')}</div>`
+    : '';
+  const rows = info.legend.filter((g) => !(g.kind === 'measure' && MEASURE_LEAD[g.channel])).map((g) => {
+    const vals = g.swatches.length
+      ? g.swatches.map((sw) => {
+          const on = pinnedHighlight && pinnedHighlight.field === g.field && pinnedHighlight.value === sw.value;
+          const dot = sw.color ? `<i class="dot" style="background:${sw.color}"></i>` : `<span class="mark">${sw.mark ?? ''}</span>`;
+          return `<button class="sw ${on ? 'on' : ''}" data-field="${g.field}" data-value="${sw.value}">${dot}${sw.value}</button>`;
+        }).join('')
+      : `<span class="note">${g.summary}</span>`;
+    return `<div class="row"><div class="ch">${g.channel}<small>${g.field}</small></div><div class="vals">${vals}</div></div>`;
+  });
+  const key = `<div class="note">a box is one <b>${spec.nodeKey.join(' + ')}</b>${info.splitBy.length ? ` · flows split by ${info.splitBy.join(', ')}` : ''}${spec.focus ? ` · ${spec.focus.match.service} expanded` : ''}</div>`;
+  const issues = info.issues.map((i) => `<div class="warn">⚠ ${i}</div>`).join('');
+  host.innerHTML = key + measureLine + rows.join('') + issues;
+  const want = insets();
+  if (want.bottom !== lastBottomInset) { lastBottomInset = want.bottom; queueMicrotask(refit); }
+
+  for (const b of host.querySelectorAll('.sw')) {
+    const h = { field: b.dataset.field, value: b.dataset.value };
+    b.onmouseenter = () => { if (!pinnedHighlight) tl.setHighlight(h); };
+    b.onmouseleave = () => { if (!pinnedHighlight) tl.setHighlight(null); };
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const same = pinnedHighlight && pinnedHighlight.field === h.field && pinnedHighlight.value === h.value;
+      setHighlight(same ? null : h, true);
+    };
+  }
+}
+
+function setHighlight(h, pin = false) {
+  pinnedHighlight = pin ? h : null;
+  tl.setHighlight(h);
+  if (lastView) renderLegend(lastView);
+}
+
+// ---------------------------------------------------------------------------
+// selection + inspector
+// ---------------------------------------------------------------------------
+let lastClickAt = 0;
+let lastClickId = null;
+function onSelectTarget(target) {
+  if (!target) return clearSelection();
+  const id = target.kind === 'node' ? target.node.id : target.edge.id;
+  const t = performance.now();
+  if (target.kind === 'node' && lastClickId === id && t - lastClickAt < 380) {
+    toggleFocus(target.node);
+    lastClickAt = 0;
+    return;
+  }
+  lastClickAt = t; lastClickId = id;
+  selected = { kind: target.kind, id };
+  tl.select(target.kind === 'node' ? id : null);
+  renderInspector(selected);
+  const was = $('inspector').classList.contains('open');
+  $('inspector').classList.add('open');
+  if (!was) refit();
+}
+function onHover(target) { /* reserved for a future status line */ }
+
+function clearSelection() {
+  selected = null;
+  tl.select(null);
+  const was = $('inspector').classList.contains('open');
+  $('inspector').classList.remove('open');
+  if (was) refit();
+}
+
+function toggleFocus(node) {
+  const service = node.key.service ?? node.label;
+  const expanded = spec.focus?.match?.service === service;
+  if (expanded || spec.nodeKey.includes('api')) delete spec.focus;
+  else spec.focus = { match: { service }, expandBy: ['api'] };
+  apply();
+  toast(spec.focus ? `${service} expanded into its APIs` : `${service} collapsed`);
+}
+
+function renderInspector(sel) {
+  const scene = tl.getScene();
+  const host = $('inspector');
+  if (sel.kind === 'node') {
+    const n = scene.nodes.find((x) => x.id === sel.id);
+    if (!n) return clearSelection();
+    const health = healthOf(n.id);
+    const killed = (spec.killed ?? []).includes(n.id);
+    const inbound = scene.edges.filter((e) => e.to === n.id).sort((a, b) => b.metrics.rps - a.metrics.rps);
+    const outbound = scene.edges.filter((e) => e.from === n.id).sort((a, b) => b.metrics.rps - a.metrics.rps);
+    const maxRps = Math.max(1, ...[...inbound, ...outbound].map((e) => e.metrics.rps));
+    const canExpand = !spec.nodeKey.includes('api') && (n.spans.api?.length ?? 0) > 1;
+    const expanded = spec.focus?.match?.service === (n.key.service ?? n.label);
+    host.innerHTML = `
+      <header>
+        <div>
+          <div class="kind">${n.kind}${n.records > 1 ? ` · ${n.records} records` : ''}</div>
+          <h3>${n.label}${n.sublabel ? `<small>${n.sublabel}</small>` : ''}</h3>
+        </div>
+        <button class="x" aria-label="close" id="insp-close">×</button>
+      </header>
+      <div class="body">
+        <div class="actions">
+          <span class="state ${health}">${health}</span>
+          ${canExpand ? `<button class="btn" id="act-focus">${expanded ? 'collapse' : 'expand into APIs'}</button>` : ''}
+          <button class="btn danger ${killed ? 'on' : ''}" id="act-kill">${killed ? 'revive' : 'kill'}</button>
+        </div>
+        <dl class="kv">
+          ${Object.entries(n.key).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}
+          <dt>inbound</dt><dd>${formatRps(n.inboundRps)}/s</dd>
+          <dt>outbound</dt><dd>${formatRps(n.outboundRps)}/s</dd>
+          ${n.attrs.instances ? `<dt>instances</dt><dd>${Math.round(n.attrs.instances)}</dd>` : ''}
+          ${gauge('cpu', n.attrs.cpu)}${gauge('mem', n.attrs.mem)}
+          ${Object.entries(n.spans).filter(([k, v]) => v.length && v.length <= 6 && !['kind'].includes(k)).slice(0, 5)
+            .map(([k, v]) => `<dt>${k}</dt><dd>${v.join(', ')}</dd>`).join('')}
+        </dl>
+        ${flowList('calls', outbound, maxRps, 'to')}
+        ${flowList('called by', inbound, maxRps, 'from')}
+      </div>`;
+    $('insp-close').onclick = clearSelection;
+    $('act-kill').onclick = () => {
+      const k = new Set(spec.killed ?? []);
+      k.has(n.id) ? k.delete(n.id) : k.add(n.id);
+      spec.killed = [...k];
+      tl.kill(spec.killed);
+      renderInspector(sel);
+      toast(k.has(n.id) ? `${n.label} killed — watch the front travel` : `${n.label} revived`);
+    };
+    $('act-focus')?.addEventListener('click', () => toggleFocus(n));
+    for (const b of host.querySelectorAll('.flow')) {
+      b.onclick = () => { selected = { kind: 'node', id: b.dataset.id }; tl.select(b.dataset.id); renderInspector(selected); };
+    }
+  } else {
+    const e = scene.edges.find((x) => x.id === sel.id);
+    if (!e) return clearSelection();
+    const st = tl.getLegend();
+    host.innerHTML = `
+      <header>
+        <div>
+          <div class="kind">flow${e.records > 1 ? ` · ${e.records} records` : ''}</div>
+          <h3>${e.from} <span style="color:var(--faint)">→</span> ${e.to}${e.label ? `<small>${e.label}</small>` : ''}</h3>
+        </div>
+        <button class="x" aria-label="close" id="insp-close">×</button>
+      </header>
+      <div class="body">
+        <dl class="kv">
+          ${Object.entries(e.dims).map(([k, v]) => `<dt>${k}</dt><dd><button class="sw" data-field="${k}" data-value="${v}" style="padding:0 6px">${v} · isolate</button></dd>`).join('')}
+          <dt>rps</dt><dd>${formatRps(e.metrics.rps)}/s</dd>
+          <dt>latency</dt><dd>${formatLatency(e.metrics.latencyMs)}</dd>
+          <dt>errors</dt><dd>${(e.metrics.errorRate * 100).toFixed(2)}%</dd>
+          <dt>payload</dt><dd>${formatBytes(e.metrics.bytes)}</dd>
+          ${Object.entries(e.spans).filter(([, v]) => v.length > 1 && v.length <= 6).slice(0, 4).map(([k, v]) => `<dt>${k}</dt><dd>${v.join(', ')}</dd>`).join('')}
+        </dl>
+      </div>`;
+    $('insp-close').onclick = clearSelection;
+    for (const b of host.querySelectorAll('.sw')) {
+      b.onclick = () => setHighlight({ field: b.dataset.field, value: b.dataset.value }, true);
+    }
+  }
+}
+
+function gauge(label, v) {
+  if (v === undefined) return '';
+  const cls = v > 0.85 ? 'crit' : v > 0.7 ? 'hot' : '';
+  return `<dt>${label}</dt><dd>${Math.round(v * 100)}%<div class="meter"><i class="${cls}" style="width:${Math.round(v * 100)}%"></i></div></dd>`;
+}
+function flowList(title, edges, max, side) {
+  if (!edges.length) return '';
+  return `<div class="section"><h4>${title}</h4><div class="flows">${edges.slice(0, 12).map((e) => `
+    <button class="flow" data-id="${e[side]}">
+      <span class="who">${e[side]}<small>${Object.values(e.dims).join(' · ')}</small></span>
+      <span class="n">${formatRps(e.metrics.rps)}/s · ${formatLatency(e.metrics.latencyMs)}</span>
+      <span class="bar"><i style="width:${Math.round((e.metrics.rps / max) * 100)}%"></i></span>
+    </button>`).join('')}</div></div>`;
+}
+function healthOf(id) { return tl.health(id); }
+
+// ---------------------------------------------------------------------------
+// palette
+// ---------------------------------------------------------------------------
+const QUICK = [
+  { label: 'Show as a world', run: () => { spec.mode = 'world'; apply(); } },
+  { label: 'Show as a map', run: () => { spec.mode = 'flat'; apply(); } },
+  { label: 'Boxes are APIs', run: () => { spec.nodeKey = ['service', 'api']; delete spec.focus; apply(); } },
+  { label: 'Boxes are services', run: () => { spec.nodeKey = ['service']; delete spec.focus; apply(); } },
+  { label: 'Revive everything', run: () => { spec.killed = []; tl.kill([]); } },
+  { label: 'Reset', run: () => { spec = structuredClone(DEFAULT_SPEC); clearSelection(); setHighlight(null); apply(); } },
+];
+let suggIndex = 0;
+function openPalette() { $('veil').classList.add('open'); $('ask').value = ''; renderSugg(''); setTimeout(() => $('ask').focus(), 10); }
+function closePalette() { $('veil').classList.remove('open'); }
+$('btn-ask').onclick = openPalette;
+$('veil').addEventListener('click', (e) => { if (e.target === $('veil')) closePalette(); });
+$('ask').addEventListener('input', (e) => renderSugg(e.target.value));
+$('ask').addEventListener('keydown', (e) => {
+  const items = [...$('sugg').children];
+  if (e.key === 'ArrowDown') { suggIndex = Math.min(items.length - 1, suggIndex + 1); markSugg(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { suggIndex = Math.max(0, suggIndex - 1); markSugg(); e.preventDefault(); }
+  else if (e.key === 'Enter') { items[suggIndex]?.click(); }
+  else if (e.key === 'Escape') closePalette();
+});
+function markSugg() { [...$('sugg').children].forEach((b, i) => b.classList.toggle('on', i === suggIndex)); }
+function renderSugg(q) {
+  const host = $('sugg');
+  host.innerHTML = '';
+  suggIndex = 0;
+  const ql = q.trim().toLowerCase();
+  const nodes = tl ? tl.getScene().nodes : [];
+  const cmds = [];
+  if (ql) cmds.push({ label: `Ask: “${q.trim()}”`, meta: 'compose a view', run: () => ask(q.trim()) });
+  const m = ql.match(/^(kill|revive)\s+(.+)$/);
+  if (m) {
+    for (const n of nodes.filter((n) => n.id.toLowerCase().includes(m[2])).slice(0, 5)) {
+      cmds.push({ label: `${m[1]} ${n.id}`, meta: n.kind, run: () => {
+        const k = new Set(spec.killed ?? []); m[1] === 'kill' ? k.add(n.id) : k.delete(n.id); spec.killed = [...k]; tl.kill(spec.killed);
+      } });
+    }
+  }
+  for (const c of QUICK.filter((c) => !ql || c.label.toLowerCase().includes(ql))) cmds.push({ ...c, meta: 'quick' });
+  for (const n of nodes.filter((n) => ql && n.id.toLowerCase().includes(ql)).slice(0, 6)) {
+    cmds.push({ label: `Inspect ${n.id}`, meta: n.kind, run: () => { selected = { kind: 'node', id: n.id }; tl.select(n.id); renderInspector(selected); $('inspector').classList.add('open'); } });
+  }
+  for (const c of cmds.slice(0, 12)) {
+    const b = document.createElement('button');
+    b.innerHTML = `<span>${c.label}</span><small>${c.meta}</small>`;
+    b.onclick = () => { closePalette(); c.run(); };
+    host.appendChild(b);
+  }
+  markSugg();
+}
+
+let samplePromise;
+function claudeSample() {
+  samplePromise ??= (window.claude?.use ? window.claude.use('sample') : Promise.resolve(null)).catch(() => null);
+  return samplePromise;
+}
+claudeSample().then((s) => { $('tierRow').hidden = !s; });
+
+async function ask(request) {
+  toast('composing…');
+  const sample = await claudeSample();
+  const tier = $('tier').value;
+  const complete = sample
+    ? async ({ system, user }) => (await sample([{ role: 'user', content: `${system}\n\n${user}` }], { modelTier: tier })).text
+    : null;
+  const result = complete
+    ? await proposeSpec(request, { complete, schema: SCHEMA, current: spec })
+    : { spec: heuristicSpec(request, SCHEMA, spec), issues: [], source: 'fallback' };
+  spec = { ...spec, ...result.spec };
+  clearSelection(); setHighlight(null);
+  apply();
+  toast(result.source === 'model' ? `composed on the ${tier} tier, validated against the registry` : 'no model here — read by the built-in heuristic');
+  if (result.issues.length && lastView) { lastView.issues = result.issues; renderLegend(lastView); }
+}
+
+// ---------------------------------------------------------------------------
+// buttons, keys, theme, toast
+// ---------------------------------------------------------------------------
+function syncButtons() {
+  $('btn-world').classList.toggle('primary', spec.mode === 'world');
+  $('btn-numbers').classList.toggle('primary', numbers);
+}
+$('btn-world').onclick = () => { if (!WORLD_ENABLED) return; spec.mode = spec.mode === 'world' ? 'flat' : 'world'; apply(); };
+$('btn-numbers').onclick = () => { numbers = !numbers; tl.setOptions({ showEdgeLabels: numbers }); syncButtons(); if ($('k-numbers')) $('k-numbers').checked = numbers; };
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); return; }
+  if ($('veil').classList.contains('open')) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'Escape') { closePopover(); if (pinnedHighlight) setHighlight(null); else if (selected) clearSelection(); else if (spec.focus) { delete spec.focus; apply(); } }
+  if (e.key.toLowerCase() === 'w' && WORLD_ENABLED) $('btn-world').click();
+  if (e.key.toLowerCase() === 'k') toggleKnobs();
+  if (e.key.toLowerCase() === 'n') $('btn-numbers').click();
+  if (e.key === '/') { e.preventDefault(); openPalette(); }
+});
+
+// One tooltip element for every (i). Delegated, so controls built later work too.
+const tip = $('tip');
+let tipTimer;
+function showTip(el) {
+  const text = el.dataset.hint;
+  if (!text) return;
+  tip.textContent = text;
+  const r = el.getBoundingClientRect();
+  tip.style.left = Math.max(8, Math.min(r.left, innerWidth - 316)) + 'px';
+  tip.style.top = (r.bottom + 8 > innerHeight - 80 ? r.top - 8 - 70 : r.bottom + 8) + 'px';
+  tip.classList.add('show');
+}
+function hideTip() { tip.classList.remove('show'); }
+document.addEventListener('mouseover', (e) => {
+  const el = e.target.closest?.('[data-hint]');
+  clearTimeout(tipTimer);
+  if (!el) return hideTip();
+  tipTimer = setTimeout(() => showTip(el), 220);
+});
+document.addEventListener('mouseout', (e) => { if (!e.relatedTarget?.closest?.('[data-hint]')) { clearTimeout(tipTimer); hideTip(); } });
+document.addEventListener('focusin', (e) => { const el = e.target.closest?.('[data-hint]'); if (el) showTip(el); });
+document.addEventListener('focusout', hideTip);
+
+function pageTheme() {
+  const stamped = document.documentElement.getAttribute('data-theme');
+  if (stamped === 'dark' || stamped === 'light') return stamped;
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function watchTheme() {
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => tl.setOptions({ theme: pageTheme() }));
+  new MutationObserver(() => tl.setOptions({ theme: pageTheme() })).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+</script>
+</body>
+</html>
