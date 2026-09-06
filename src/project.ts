@@ -189,6 +189,7 @@ export function project(table: FlowTable, spec: ViewSpec): ProjectionResult {
           latencyWeighted: 0,
           errorWeighted: 0,
           bytesWeighted: 0,
+          lag: 0,
           records: 0,
         }),
       );
@@ -197,6 +198,7 @@ export function project(table: FlowTable, spec: ViewSpec): ProjectionResult {
     edge.latencyWeighted += (record.metrics.latencyMs ?? 25) * rps;
     edge.errorWeighted += (record.metrics.errorRate ?? 0) * rps;
     edge.bytesWeighted += (record.metrics.bytes ?? 1024) * rps;
+    edge.lag += record.metrics.lag ?? 0;
     edge.records++;
     collectSpans(edge.spans, { ...record.dims, ...record.from }, split, nodeKey);
     collectSpans(edge.spans, { ...record.dims, ...record.to }, split, nodeKey);
@@ -255,6 +257,7 @@ export function project(table: FlowTable, spec: ViewSpec): ProjectionResult {
       latencyMs: e.rps > 0 ? round(e.latencyWeighted / e.rps, 2) : 0,
       errorRate: e.rps > 0 ? round(e.errorWeighted / e.rps, 5) : 0,
       bytes: e.rps > 0 ? Math.round(e.bytesWeighted / e.rps) : 0,
+      lag: Math.round(e.lag),
       share: (outboundOf.get(e.from) ?? 0) > 0 ? round(e.rps / outboundOf.get(e.from)!, 4) : 0,
     },
     records: e.records,
@@ -353,10 +356,11 @@ interface MutableEdge {
   latencyWeighted: number;
   errorWeighted: number;
   bytesWeighted: number;
+  lag: number;
   records: number;
 }
 
-const MEASURES = new Set(['rps', 'latencyMs', 'errorRate', 'bytes', 'share']);
+const MEASURES = new Set(['rps', 'latencyMs', 'errorRate', 'bytes', 'lag', 'share']);
 export function isMeasure(field: string): boolean {
   return MEASURES.has(field);
 }

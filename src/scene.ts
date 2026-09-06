@@ -86,6 +86,7 @@ export function sceneFromGraph(graph: Graph): Scene {
       spans: {},
       metrics: {
         ...e.metrics,
+        lag: 0,
         share: (outbound.get(e.from) ?? 0) > 0 ? e.metrics.rps / outbound.get(e.from)! : 0,
       },
       records: 1,

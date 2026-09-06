@@ -310,7 +310,7 @@ export function generateEstate(options: EstateOptions = {}): FlowTable {
         from: { service: c.topic.name, api: c.group },
         to: { service: c.to.name, api: 'consume' },
         dims: { env: 'prod', region, transport: 'kafka', protocol: 'kafka', failure: 'fail-open', group: c.group },
-        metrics: { rps: Math.round(c.rps * share * 100) / 100, latencyMs: Math.round(between(5, 80) * 10) / 10, errorRate: r4(errorFor(c.to.name, between(0, 0.004))), bytes: Math.round(between(300, 4000)) },
+        metrics: { rps: Math.round(c.rps * share * 100) / 100, latencyMs: Math.round(between(5, 80) * 10) / 10, errorRate: r4(errorFor(c.to.name, between(0, 0.004))), bytes: Math.round(between(300, 4000)), lag: Math.round(c.lag * share) },
       });
     }
   });

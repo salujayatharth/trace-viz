@@ -21,6 +21,11 @@ export interface FlowMeasures {
   errorRate?: number;
   bytes?: number;
   /**
+   * Consumer lag on an async flow, in messages: how far a consumer group is
+   * behind its topic. Sums under aggregation. Only meaningful topic → consumer.
+   */
+  lag?: number;
+  /**
    * Derived, never supplied: this edge's rps as a fraction of everything its
    * caller sends. 0.8 means the caller puts most of its traffic here - that is
    * coupling, and it is what `distance` pulls on by default.
