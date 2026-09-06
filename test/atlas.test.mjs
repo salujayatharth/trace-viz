@@ -97,3 +97,26 @@ test('search ranks prefix matches first and finds groups', () => {
   assert.ok(hits.some((h) => h.kind.startsWith('group:')));
   assert.ok(hits[0].label.toLowerCase().startsWith('ledger') || hits[0].label.toLowerCase().includes('ledger'));
 });
+
+test('lag is a measure: summed per consume edge, rolled up to the topic and the unit edge', () => {
+  const topics = [...model.leaves.values()].filter((l) => l.kind === 'topic');
+  const withLag = topics.filter((t) => (t.attrs.lag ?? 0) > 0);
+  assert.ok(withLag.length > topics.length * 0.8, 'most topics carry lag from their consume flows');
+  for (const t of withLag) {
+    const fromEdges = (model.out.get(t.id) ?? []).reduce((s, eid) => s + model.byId.get(eid).lag, 0);
+    assert.equal(t.attrs.lag, fromEdges, `${t.id} lag equals the sum over its consumer groups`);
+  }
+  const { units } = visibleUnits(model, emptyState());
+  const { edges } = aggregateEdges(model, units);
+  const total = model.edges.reduce((s, e) => s + e.lag, 0);
+  const shown = edges.reduce((s, e) => s + e.lag, 0);
+  assert.ok(shown <= total && shown > 0, 'unit edges carry the lag of their flows');
+});
+
+test('the flat projection carries lag too', async () => {
+  const { project } = await import('../dist/index.js');
+  const { scene } = project(table, { nodeKey: ['service'], where: { region: ['eu-west'] }, channels: {} });
+  const lagged = scene.edges.filter((e) => e.metrics.lag > 0);
+  assert.ok(lagged.length > 100, `consume edges have lag: ${lagged.length}`);
+  assert.ok(scene.edges.every((e) => Number.isInteger(e.metrics.lag)));
+});
