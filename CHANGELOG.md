@@ -1,3 +1,8 @@
+## 0.2.1
+
+- Error halo redesigned: bound to an error rate, the halo is now a red glow on an absolute scale (nothing under 0.4%, a rim at ~1%, a wide slow-breathing bloom past 6%) instead of a ring relative to the worst node. `NodeStyle.haloIntensity` exposes the 0..1 strength; `ERROR_FLOOR` / `ERROR_CEIL` are exported.
+- Seed mesh now has a realistic error tail: one service having a bad day (2-5%) and one busy API on fire (12-30%), the same in both regions.
+
 # Changelog
 
 Published on npm as `trace-viz`.
