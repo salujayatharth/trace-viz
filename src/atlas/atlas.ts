@@ -62,6 +62,7 @@ export interface InspectEntry {
   async: boolean;
   rigid: boolean;
   apis: string[];
+  lag: number;
 }
 
 export interface Inspection {
@@ -208,6 +209,32 @@ export class Atlas {
     this.fit(undefined, false);
   }
 
+  /**
+   * Replace the data but keep the place: expansion, focus, hops, kills and
+   * the camera survive, so a live feed changes the numbers under a view
+   * without moving the viewer. Groups or leaves that vanished are dropped
+   * from the state; everything else morphs.
+   */
+  update(table: FlowTable, options: AtlasModelOptions = {}): void {
+    const prev = this.getState();
+    const cam = { ...this.camera };
+    this.model = buildAtlas(table, { ...this.opts, ...options });
+    this.groupColour.clear();
+    this.model.roots.forEach((r, i) => this.groupColour.set(r, CATEGORICAL[i % CATEGORICAL.length]!));
+    const m = this.model;
+    this.state = {
+      expanded: prev.expanded.filter((g) => m.groups.has(g)),
+      focus: prev.focus && m.leaves.has(prev.focus) ? prev.focus : null,
+      hops: prev.hops,
+      killed: prev.killed.filter((k) => m.leaves.has(k)),
+      pins: (prev.pins ?? []).filter((p) => m.leaves.has(p)),
+    };
+    if (this.trailIds && ![...this.trailIds].every((id) => m.leaves.has(id))) this.clearTrail();
+    this.rebuild(true);
+    this.camera = cam;
+    this.cameraTo = null;
+  }
+
   getModel(): AtlasModel | null {
     return this.model;
   }
@@ -280,7 +307,9 @@ export class Atlas {
   }
 
   collapseAll(): void {
-    this.setState({ expanded: [], focus: null }, null);
+    this.trailIds = null;
+    this.trailEdges = new Set();
+    this.setState({ expanded: [], focus: null, pins: [] }, null);
   }
 
   focus(id: string | null, hops?: number): void {
@@ -290,6 +319,42 @@ export class Atlas {
     }
     this.setState({ focus: id, hops: hops ?? this.state.hops }, id ? `ego:${id}` : undefined);
     this.opts.onSelect?.(id);
+  }
+
+  /**
+   * Move the focus one step through the graph without touching the mouse:
+   * 'up' to the heaviest caller, 'down' to the heaviest callee, 'next' /
+   * 'prev' to the neighbouring unit in the same band. With no focus, 'down'
+   * starts at the busiest ingress.
+   */
+  walk(direction: 'up' | 'down' | 'next' | 'prev'): string | null {
+    const m = this.model;
+    if (!m) return null;
+    const cur = this.state.focus;
+    if (!cur) {
+      if (direction !== 'down') return null;
+      const start = [...m.leaves.values()].filter((l) => l.depth === 0 && l.outRps > 0).sort((a, b) => b.outRps - a.outRps)[0];
+      if (start) this.goTo(start.id);
+      return start?.id ?? null;
+    }
+    let next: string | null = null;
+    if (direction === 'up' || direction === 'down') {
+      const info = this.inspect(cur);
+      const list = direction === 'up' ? info?.upstream : info?.downstream;
+      next = list?.[0]?.id ?? null;
+    } else {
+      const leaf = m.leaves.get(cur)!;
+      const team = m.groups.get(leaf.path[leaf.path.length - 1]!);
+      const siblings = (team?.leaves ?? []).filter((id) => this.shapes.has(id));
+      const byY = siblings.sort((a, b) => {
+        const ra = this.shapes.get(a)!, rb = this.shapes.get(b)!;
+        return ra.y - rb.y || ra.x - rb.x;
+      });
+      const i = byY.indexOf(cur);
+      next = byY[(i + (direction === 'next' ? 1 : byY.length - 1)) % byY.length] ?? null;
+    }
+    if (next && next !== cur) this.goTo(next);
+    return next;
   }
 
   setHops(hops: number): void {
@@ -382,9 +447,10 @@ export class Atlas {
     let inRps = 0;
     let outRps = 0;
     let errW = 0;
-    const add = (map: typeof up, other: string, e: { rps: number; latencyMs: number; errorRate: number; async: boolean; rigid: boolean; apis: string[] }): void => {
-      const cur = map.get(other) ?? { id: other, label: other, kind: m.leaves.get(other)?.kind ?? 'service', rps: 0, latencyMs: 0, errorRate: 0, async: e.async, rigid: e.rigid, apis: [], lat: 0, err: 0 };
+    const add = (map: typeof up, other: string, e: { rps: number; latencyMs: number; errorRate: number; async: boolean; rigid: boolean; apis: string[]; lag: number }): void => {
+      const cur = map.get(other) ?? { id: other, label: other, kind: m.leaves.get(other)?.kind ?? 'service', rps: 0, latencyMs: 0, errorRate: 0, async: e.async, rigid: e.rigid, apis: [], lag: 0, lat: 0, err: 0 };
       cur.rps += e.rps;
+      cur.lag += e.lag;
       cur.lat += e.latencyMs * e.rps;
       cur.err += e.errorRate * e.rps;
       cur.async = cur.async && e.async;
@@ -409,7 +475,7 @@ export class Atlas {
     }
     const finish = (map: typeof up): InspectEntry[] =>
       [...map.values()]
-        .map((x) => ({ id: x.id, label: x.label, kind: x.kind, rps: x.rps, latencyMs: x.rps ? x.lat / x.rps : 0, errorRate: x.rps ? x.err / x.rps : 0, async: x.async, rigid: x.rigid, apis: x.apis }))
+        .map((x) => ({ id: x.id, label: x.label, kind: x.kind, rps: x.rps, latencyMs: x.rps ? x.lat / x.rps : 0, errorRate: x.rps ? x.err / x.rps : 0, async: x.async, rigid: x.rigid, apis: x.apis, lag: x.lag }))
         .sort((a, b) => b.rps - a.rps);
     const health = this.health.dead.has(id) ? 'dead' : this.health.degraded.has(id) ? 'degraded' : 'ok';
     return leaf
@@ -975,6 +1041,20 @@ export class Atlas {
     } else ctx.strokeStyle = emphasised ? this.brighten(colour) : colour;
     ctx.lineWidth = w;
     ctx.stroke();
+    // Consumer lag: a backed-up consume edge carries an amber-to-red bead
+    // trail under the packets, so the lag is visible on the flow itself and
+    // not only in the topic's pipe.
+    if (!hair && e.async && e.lag > 0 && !dead && this.lens !== 'ownership') {
+      const lt = logNorm(e.lag, 100, 1e6);
+      if (lt > 0.08) {
+        ctx.setLineDash([2, Math.max(5, 14 - lt * 8)]);
+        ctx.lineDashOffset = this.dash * 0.4;
+        ctx.strokeStyle = lt < 0.55 ? '#f59e0b' : t.error;
+        ctx.lineWidth = w + 2 + lt * 4;
+        ctx.globalAlpha = alpha * (0.25 + lt * 0.5);
+        ctx.stroke();
+      }
+    }
     // Under-glow so a heavy ribbon reads over the bands.
     if (!hair && w > 3 && !dead) {
       ctx.setLineDash([]);
@@ -1062,12 +1142,29 @@ export class Atlas {
       ctx.fill();
       ctx.stroke();
       if (u.kind === 'group') {
-        // A collapsed group: ownership stripe, member count, a small
-        // "contains topics" pipe if it does.
+        // A collapsed group: ownership stripe, and a depth profile - how
+        // many members sit in each column - so a wide bar says where the
+        // team actually lives on the request path, not just that it spans it.
         ctx.fillStyle = this.colourOf(u.id);
         ctx.globalAlpha = alpha * 0.9;
         roundRect(ctx, r.x, r.y, 5, r.h, 2);
         ctx.fill();
+        if (u.depthMax > u.depthMin) {
+          const L = this.layoutResult!;
+          const counts = new Map<number, number>();
+          for (const id of u.members) {
+            const d = m.leaves.get(id)!.depth;
+            counts.set(d, (counts.get(d) ?? 0) + 1);
+          }
+          const max = Math.max(1, ...counts.values());
+          ctx.fillStyle = this.colourOf(u.id);
+          for (const [d, n] of counts) {
+            const x = L.colX(d);
+            const h = 2 + r.h * 0.3 * (n / max);
+            ctx.globalAlpha = alpha * 0.22;
+            ctx.fillRect(Math.max(r.x + 8, x + 4), r.y + r.h - 4 - h, Math.min(L.metrics.tileW - 8, r.x + r.w - 8 - x), h);
+          }
+        }
         ctx.globalAlpha = alpha;
       }
     }
@@ -1448,6 +1545,7 @@ export class Atlas {
       const e = this.edges.find((x) => x.id === h.id);
       if (e) {
         const bits = [`${e.from}  →  ${e.to}`, `${formatRps(e.rps)}  ${formatLatency(e.latencyMs)}  ${(e.errorRate * 100).toFixed(2)}% err`, e.async ? 'async (kafka)' : e.mixed ? 'sync + async' : 'sync', e.rigid ? 'fail-closed on every flow' : 'has fail-open flows'];
+        if (e.lag > 0) bits.push(`consumer lag ${fmtInt(e.lag)}`);
         if (e.leafEdges.length > 1) bits.push(`${e.leafEdges.length} flows between ${e.fromLeaves} and ${e.toLeaves} services`);
         else if (e.leafEdges[0]?.apis.length) bits.push(e.leafEdges[0].apis.slice(0, 6).join(', '));
         if (e.back) bits.push('against the grain (callback / cycle)');

@@ -61,6 +61,8 @@ export interface AtlasEdge {
   /** Distinct apis / consumer groups seen on this edge. */
   apis: string[];
   flows: number;
+  /** Consumer lag (messages) summed over the underlying flows. */
+  lag: number;
 }
 
 export interface AtlasModel {
@@ -111,7 +113,7 @@ export function buildAtlas(table: FlowTable, options: AtlasModelOptions = {}): A
   };
 
   // Aggregate records to leaf pairs.
-  type Acc = { rps: number; lat: number; err: number; bytes: number; async: boolean; rigid: boolean; apis: Set<string>; flows: number };
+  type Acc = { rps: number; lat: number; err: number; bytes: number; lag: number; async: boolean; rigid: boolean; apis: Set<string>; flows: number };
   const acc = new Map<string, Acc>();
   const leafIds = new Set<string>();
   for (const r of table.records) {
@@ -122,12 +124,13 @@ export function buildAtlas(table: FlowTable, options: AtlasModelOptions = {}): A
     leafIds.add(from);
     leafIds.add(to);
     const key = `${from}\u0000${to}`;
-    const a = acc.get(key) ?? { rps: 0, lat: 0, err: 0, bytes: 0, async: true, rigid: true, apis: new Set(), flows: 0 };
+    const a = acc.get(key) ?? { rps: 0, lat: 0, err: 0, bytes: 0, lag: 0, async: true, rigid: true, apis: new Set(), flows: 0 };
     const rps = r.metrics.rps;
     a.rps += rps;
     a.lat += (r.metrics.latencyMs ?? 0) * rps;
     a.err += (r.metrics.errorRate ?? 0) * rps;
     a.bytes += (r.metrics.bytes ?? 0) * rps;
+    a.lag += r.metrics.lag ?? 0;
     const transport = r.dims?.transport ?? r.dims?.protocol ?? '';
     if (!/kafka|async|queue|sqs|pubsub|rabbit/i.test(transport)) a.async = false;
     if (!/closed|rigid|hard|required/i.test(r.dims?.failure ?? '')) a.rigid = false;
@@ -160,6 +163,7 @@ export function buildAtlas(table: FlowTable, options: AtlasModelOptions = {}): A
       back: false,
       apis: [...a.apis].sort(),
       flows: a.flows,
+      lag: a.lag,
     };
     edges.push(e);
     out.get(from)!.push(e.id);
@@ -250,6 +254,11 @@ export function buildAtlas(table: FlowTable, options: AtlasModelOptions = {}): A
       err += e.errorRate * e.rps;
     }
     const outRps = totalOut(id);
+    // A topic's lag is the sum over its consumer groups when the flows carry
+    // it; a node fact `lag` is the fallback.
+    const edgeLag = (out.get(id) ?? []).reduce((s, eid) => s + edgeById.get(eid)!.lag, 0);
+    const attrs = { ...(f?.attrs ?? {}) };
+    if (edgeLag > 0) attrs.lag = edgeLag;
     leaves.set(id, {
       id,
       label: id,
@@ -257,7 +266,7 @@ export function buildAtlas(table: FlowTable, options: AtlasModelOptions = {}): A
       path,
       depth: depth.get(id) ?? 0,
       dims,
-      attrs: f?.attrs ?? {},
+      attrs,
       inRps,
       outRps,
       errorRate: inRps > 0 ? err / inRps : 0,
@@ -451,6 +460,8 @@ export interface UnitEdge {
   /** rps-weighted mean depth of the leaves on each side: where along the path this traffic leaves and lands. */
   fromDepth: number;
   toDepth: number;
+  /** Consumer lag summed over the underlying async flows. */
+  lag: number;
 }
 
 /** Fold the leaf graph onto the visible units. Internal traffic of a unit is dropped (it is reported on the unit). */
@@ -473,7 +484,7 @@ export function aggregateEdges(model: AtlasModel, units: Unit[], keep: (e: Atlas
     if (!u) {
       u = {
         id: key, from: a, to: b, rps: 0, latencyMs: 0, errorRate: 0, bytes: 0, async: false, mixed: false, rigid: true, back: true,
-        leafEdges: [], fromLeaves: 0, toLeaves: 0, fromDepth: 0, toDepth: 0, lat: 0, err: 0, by: 0, fd: 0, td: 0, syncSeen: false, asyncSeen: false, fl: new Set(), tl: new Set(),
+        leafEdges: [], fromLeaves: 0, toLeaves: 0, fromDepth: 0, toDepth: 0, lag: 0, lat: 0, err: 0, by: 0, fd: 0, td: 0, syncSeen: false, asyncSeen: false, fl: new Set(), tl: new Set(),
       };
       acc.set(key, u);
     }
@@ -483,6 +494,7 @@ export function aggregateEdges(model: AtlasModel, units: Unit[], keep: (e: Atlas
     u.by += e.bytes * e.rps;
     u.fd += model.leaves.get(e.from)!.depth * e.rps;
     u.td += model.leaves.get(e.to)!.depth * e.rps;
+    u.lag += e.lag;
     if (e.async) u.asyncSeen = true;
     else u.syncSeen = true;
     if (!e.rigid) u.rigid = false;
@@ -507,6 +519,7 @@ export function aggregateEdges(model: AtlasModel, units: Unit[], keep: (e: Atlas
       toLeaves: u.tl.size,
       fromDepth: u.rps > 0 ? u.fd / u.rps : 0,
       toDepth: u.rps > 0 ? u.td / u.rps : 0,
+      lag: u.lag,
     });
   }
   edges.sort((a, b) => b.rps - a.rps);
